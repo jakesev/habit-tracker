@@ -168,9 +168,9 @@ function draw() {
 
   viewMode === "all" ? drawAllPyramids() : drawActivePyramid();
   pop();
+  
+  drawFocusInfo();
 
-  // Focus text under canvas card (DOM)
-  if (viewMode === "focus") drawFocusInfo();
 }
 
 /* ================= DRAW PYRAMIDS ================= */
@@ -439,9 +439,19 @@ function updateStatus() {
 }
 
 function drawFocusInfo() {
-  document.getElementById("focusInfo").innerText =
-    `Pyramid ${pyramids.length + 1} • ${active.length}/${MAX_TRIANGLES} triangles`;
+  const el = document.getElementById("focusInfo");
+  if (!el) return;
+
+  const total = pyramids.length * MAX_TRIANGLES + active.length;
+
+  if (viewMode === "all") {
+    el.innerText = `Total progress • ${total} triangles`;
+  } else {
+    el.innerText =
+      `Pyramid ${pyramids.length + 1} • ${active.length}/${MAX_TRIANGLES} triangles`;
+  }
 }
+
 
 /* ================= UTIL ================= */
 function computeAutoScale() {

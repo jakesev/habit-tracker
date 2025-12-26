@@ -241,6 +241,7 @@ canvas {
   font-size: 14px;
   font-weight: 700;
   opacity: 0.85;
+  letter-spacing: 0.4px;
 }
 
 /* ===== CONTROLS (bottom like reference) ===== */
