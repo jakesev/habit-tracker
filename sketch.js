@@ -111,6 +111,11 @@ function draw() {
   if (viewMode === "all") drawAllPyramids();
   else drawActivePyramid();
 
+  if (viewMode === "focus") {
+  drawFocusInfo();
+}
+
+
   pop();
 }
 
@@ -307,17 +312,53 @@ function getLevelInfo() {
 function updateStatus() {
   let info = getLevelInfo();
 
+  // CUMULATIVE display (what you described)
+  // Level 1: 0/1
+  // Level 2: 1/3
+  // Level 3: 3/6
+  let currentXP = info.xp;
+  let nextXP = info.nextThreshold;
+
   document.getElementById("statusText").innerText =
-    `Level ${info.level} — ${info.xp}/${info.nextThreshold} XP ` +
+    `Level ${info.level} — ${currentXP}/${nextXP} XP ` +
     `(Active: ${active.length} | Completed Pyramids: ${pyramids.length})`;
 
-  // XP bar
+  // XP bar should match the same logic (cumulative)
   let bar = document.getElementById("xp-bar");
   if (bar) {
-    let pct = (info.xp / info.nextThreshold) * 100;
+    let intoLevel = info.xp - info.currentThreshold;
+    let levelSize = info.nextThreshold - info.currentThreshold;
+
+    let pct = levelSize === 0 ? 100 : (intoLevel / levelSize) * 100;
     bar.style.width = constrain(pct, 0, 100) + "%";
-  }
+    }
+
+
 }
+
+
+
+function drawFocusInfo() {
+  let pyramidNumber = pyramids.length + 1;
+  let filled = active.length;
+  let remaining = MAX_TRIANGLES - filled;
+
+  push();
+  resetMatrix();
+  fill(60);
+  textAlign(CENTER);
+  textSize(14);
+
+  text(
+    `Pyramid ${pyramidNumber}\n` +
+    `${filled} / ${MAX_TRIANGLES} triangles\n` +
+    `${remaining} remaining`,
+    width / 2,
+    height - 70
+  );
+  pop();
+}
+
 
 
 /* ================= STORAGE ================= */
