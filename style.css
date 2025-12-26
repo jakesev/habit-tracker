@@ -8,13 +8,14 @@ body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: radial-gradient(circle at top, #f8fafc, #e5e7eb);
   color: #1f2933;
+  touch-action: manipulation; /* ✅ mobile tap fix */
 }
 
 /* ===== App Card ===== */
 .app {
   max-width: 900px;
-  margin: 40px auto;
-  padding: 28px 32px 36px;
+  margin: 20px auto;
+  padding: 26px 28px 34px;
   background: #ffffff;
   border-radius: 18px;
   box-shadow:
@@ -27,7 +28,6 @@ h1 {
   margin: 0 0 22px;
   font-size: 28px;
   font-weight: 700;
-  letter-spacing: -0.3px;
 }
 
 /* ===== Controls ===== */
@@ -41,37 +41,32 @@ h1 {
 button {
   appearance: none;
   border: none;
-  background: #e5e7eb;
-  color: #111827;
-  padding: 10px 16px;
+  min-height: 48px;
+  padding: 12px 18px;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
+  background: #e5e7eb;
   transition: all 0.15s ease;
+
+  /* ✅ mobile tap behaviour */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button:hover {
-  background: #d1d5db;
   transform: translateY(-1px);
 }
 
 button.primary {
   background: linear-gradient(135deg, #22c55e, #16a34a);
-  color: #ffffff;
-}
-
-button.primary:hover {
-  filter: brightness(1.05);
+  color: white;
 }
 
 button.danger {
   background: #fee2e2;
   color: #991b1b;
-}
-
-button.danger:hover {
-  background: #fecaca;
 }
 
 /* ===== Status ===== */
@@ -80,9 +75,6 @@ button.danger:hover {
 }
 
 #statusText {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
   font-size: 14px;
   margin-bottom: 10px;
 }
@@ -99,25 +91,19 @@ button.danger:hover {
 #xp-bar {
   height: 100%;
   width: 0%;
-  background: linear-gradient(
-    90deg,
-    #22c55e,
-    #4ade80,
-    #22c55e
-  );
+  background: linear-gradient(90deg, #22c55e, #4ade80, #22c55e);
   box-shadow:
-    0 0 12px rgba(34,197,94,0.7),
-    inset 0 0 6px rgba(255,255,255,0.3);
+    0 0 10px rgba(34,197,94,0.7),
+    inset 0 0 6px rgba(255,255,255,0.35);
   border-radius: 999px;
-  transition: width 0.35s ease;
+  transition: width 0.3s ease;
 }
 
 /* ===== Canvas ===== */
 #canvas-container {
   display: flex;
   justify-content: center;
-  align-items: center;
-  padding: 24px 0 8px;
+  padding-top: 22px;
 }
 
 canvas {
@@ -126,4 +112,7 @@ canvas {
   box-shadow:
     inset 0 0 0 1px rgba(0,0,0,0.08),
     0 10px 24px rgba(0,0,0,0.12);
+
+  /* ✅ stops canvas stealing gestures */
+  touch-action: none;
 }

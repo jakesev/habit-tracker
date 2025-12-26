@@ -218,8 +218,18 @@ function updateStatus() {
   document.getElementById("statusText").innerText =
     `Level ${info.level} — ${info.xp}/${info.next} XP | Active: ${active.length} | Completed: ${pyramids.length}`;
 
-  document.getElementById("xp-bar").style.width =
-    `${(into / size) * 100}%`;
+  let pct = (into / size) * 100;
+
+/* UX FIX:
+   If next action completes the level,
+   show the bar as full */
+if (info.xp + 1 >= info.next) {
+  pct = 100;
+}
+
+document.getElementById("xp-bar").style.width =
+  constrain(pct, 0, 100) + "%";
+
 }
 
 function drawFocusInfo() {
