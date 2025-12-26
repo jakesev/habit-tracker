@@ -74,7 +74,7 @@ function unlockAudio() {
 
 /* ================= PRELOAD ================= */
 function preload() {
-  rewardSound = new p5.Oscillator("white");
+  rewardSound = new p5.Oscillator("sine");
   osc1 = new p5.Oscillator("sine");
   osc2 = new p5.Oscillator("sine");
   osc3 = new p5.Oscillator("sine");
@@ -391,8 +391,6 @@ function addProgress() {
 
   saveData();
   updateStatus();
-
-  
 }
 
 /* ================= LEVEL SYSTEM ================= */

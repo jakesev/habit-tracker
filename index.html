@@ -5,7 +5,8 @@
   <title>Triangle Progress</title>
 
   <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#22c55e">
+  <link rel="icon" href="image/icon-192.png">
+  <meta name="theme-color" content="#22c55e">
 
   <!-- Mobile UX Fix (prevents zoom / improves tapping) -->
   <meta name="viewport"
@@ -71,11 +72,12 @@
 <script>
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js")
+    navigator.serviceWorker.register("/service-worker.js")
       .then(() => console.log("Service Worker registered"))
       .catch(err => console.error("SW failed", err));
   });
 }
 </script>
+
 </body>
 </html>
