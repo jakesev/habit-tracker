@@ -238,7 +238,7 @@ function computeAutoScale() {
   let rows = Math.ceil(Math.sqrt(pyramids.length + 1));
   let pw = SIZE * ROWS;
   let ph = H * ROWS;
-  return min((width * 0.85) / ((2 * rows - 1) * pw / 2), (height * 0.85) / (rows * ph), 1);
+  return min((width * 0.75) / ((2 * rows - 1) * pw / 2), (height * 0.75) / (rows * ph), 1);
 }
 
 function cycleTheme() {
