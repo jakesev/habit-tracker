@@ -74,7 +74,7 @@ function unlockAudio() {
 
 /* ================= PRELOAD ================= */
 function preload() {
-  rewardSound = new p5.Oscillator("triangle");
+  rewardSound = new p5.Oscillator("white");
   osc1 = new p5.Oscillator("sine");
   osc2 = new p5.Oscillator("sine");
   osc3 = new p5.Oscillator("sine");
@@ -479,9 +479,8 @@ function resetAll() {
 
 /* ================= SOUND ================= */
 function playReward() {
-  rewardSound.freq(random(700, 900));
-  rewardSound.amp(0.4, 0.01);
-  rewardSound.amp(0, 0.2);
+  rewardSound.amp(0.12, 0.025);
+  rewardSound.amp(0, 0.24);
 }
 function playCompletionChord() {
   [osc1, osc2, osc3].forEach((o, i) => {
