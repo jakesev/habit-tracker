@@ -32,3 +32,23 @@ canvas {
 }
 
 
+#xp-container {
+  width: 320px;
+  height: 14px;
+  background: #ddd;
+  border-radius: 7px;
+  overflow: hidden;
+  margin: 6px 0 14px 0;
+}
+
+#xp-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(
+    90deg,
+    #f4d03f,
+    #f1c40f,
+    #f4d03f
+  );
+  transition: width 0.3s ease;
+}

@@ -4,40 +4,26 @@ const SIZE = 40;
 const H = SIZE * Math.sqrt(3) / 2;
 const MAX_TRIANGLES = ROWS * ROWS;
 
-/* ================= COLOUR THEMES ================= */
+/* ================= THEMES ================= */
 const THEMES = {
   green: {
-    active: "#66BB6A",
-    recent: "#81C784",
-    settled: "#4CAF50",
+    fill: "#4CAF50",
     inverted: "#A5D6A7",
-    stroke: "rgba(0,0,0,0.35)"
+    glow: [244, 208, 63] // gold
   },
   blue: {
-    active: "#42A5F5",
-    recent: "#64B5F6",
-    settled: "#1E88E5",
+    fill: "#1E88E5",
     inverted: "#90CAF9",
-    stroke: "rgba(0,0,0,0.35)"
+    glow: [241, 196, 15]
   },
   purple: {
-    active: "#AB47BC",
-    recent: "#BA68C8",
-    settled: "#8E24AA",
+    fill: "#8E24AA",
     inverted: "#CE93D8",
-    stroke: "rgba(0,0,0,0.35)"
-  },
-  amber: {
-    active: "#FFB300",
-    recent: "#FFD54F",
-    settled: "#FFA000",
-    inverted: "#FFE082",
-    stroke: "rgba(0,0,0,0.35)"
+    glow: [255, 215, 0]
   }
 };
 
 let currentTheme = "green";
-
 
 /* ================= STATE ================= */
 let pyramids = [];
@@ -48,171 +34,139 @@ let viewMode = "focus";
 let camScale = 1;
 let targetCamScale = 1;
 
-/* ================= LEVEL ANIM ================= */
-let lastLevel = 0;
-let levelPulse = 0; // 0..1
+/* ================= LEVEL FX ================= */
+let levelPulse = 0;
 
 /* ================= SOUND ================= */
-let rewardSound;
-let completeOsc1, completeOsc2, completeOsc3;
+let rewardSound, osc1, osc2, osc3;
 
 /* ================= PRELOAD ================= */
 function preload() {
   rewardSound = new p5.Oscillator("triangle");
-  completeOsc1 = new p5.Oscillator("sine");
-  completeOsc2 = new p5.Oscillator("sine");
-  completeOsc3 = new p5.Oscillator("sine");
+  osc1 = new p5.Oscillator("sine");
+  osc2 = new p5.Oscillator("sine");
+  osc3 = new p5.Oscillator("sine");
 }
 
 /* ================= SETUP ================= */
 function setup() {
-  let c = createCanvas(700, 500);
-  c.parent("canvas-container");
+  createCanvas(700, 500).parent("canvas-container");
 
-  rewardSound.start();
-  rewardSound.amp(0);
-
-  completeOsc1.start(); completeOsc1.amp(0);
-  completeOsc2.start(); completeOsc2.amp(0);
-  completeOsc3.start(); completeOsc3.amp(0);
+  [rewardSound, osc1, osc2, osc3].forEach(o => {
+    o.start();
+    o.amp(0);
+  });
 
   loadData();
-
-  // set lastLevel from stored XP so it doesn't "level-up" instantly on load
-  lastLevel = getLevelInfo().level;
-
   updateStatus();
 
   document.getElementById("addBtn").onclick = addProgress;
   document.getElementById("focusBtn").onclick = () => viewMode = "focus";
   document.getElementById("showAllBtn").onclick = () => viewMode = "all";
   document.getElementById("resetBtn").onclick = resetAll;
+  document.getElementById("themeBtn").onclick = cycleTheme;
 }
 
 /* ================= DRAW ================= */
 function draw() {
   background(255);
 
-  // Smooth camera
   camScale = lerp(camScale, targetCamScale, 0.08);
 
-  // Level pulse (small camera pop)
-  if (levelPulse > 0.001) {
-    levelPulse *= 0.90;
-    camScale *= (1 + levelPulse * 0.06);
-  } else {
-    levelPulse = 0;
+  if (levelPulse > 0.01) {
+    camScale *= 1 + levelPulse * 0.05;
+    levelPulse *= 0.88;
   }
 
   push();
-  translate(width / 2, 80);
+  translate(width / 2, 90);
   scale(camScale);
 
-  if (viewMode === "all") drawAllPyramids();
-  else drawActivePyramid();
-
-  if (viewMode === "focus") {
-  drawFocusInfo();
-}
-
-
+  viewMode === "all" ? drawAllPyramids() : drawActivePyramid();
   pop();
+
+  if (viewMode === "focus") drawFocusInfo();
 }
 
-/* ================= DRAW MODES ================= */
+/* ================= DRAW PYRAMIDS ================= */
 function drawActivePyramid() {
   targetCamScale = 1;
-  drawPyramid(active, false);
+  drawPyramid(active, false, pyramids.length);
 }
 
 function drawAllPyramids() {
   targetCamScale = computeAutoScale();
-
   let count = 0;
   let pw = SIZE * ROWS;
   let ph = H * ROWS;
 
-  for (let row = 0; ; row++) {
-    let slotsInRow = row * 2 + 1;
+  for (let r = 0; ; r++) {
+    let slots = r * 2 + 1;
+    let y = r * ph;
+    let startX = -((slots - 1) * pw) / 4;
 
-    // correct triangular vertical spacing
-    let y = row * (ph * 1);
-
-
-    // center the row
-    let startX = -((slotsInRow - 1) * (pw / 2)) / 2;
-
-    for (let i = 0; i < slotsInRow; i++) {
+    for (let i = 0; i < slots; i++) {
       let x = startX + i * (pw / 2);
-
-      // orientation rule that WORKS for triangular lattices
-      let isEdge = i === 0 || i === slotsInRow - 1;
-      let up = isEdge || i % 2 === 0;
+      let up = i === 0 || i === slots - 1 || i % 2 === 0;
 
       if (count < pyramids.length) {
-        drawMetaPyramid(pyramids[count], x, y, up);
+        drawMetaPyramid(pyramids[count], x, y, up, count);
         count++;
-        } else {
-        // Only draw active pyramid if this row still has capacity
-            if (count < (row + 1) * (row + 1)) {
-                drawMetaPyramid(active, x, y, up);
-            }
-            return;
-        }
+      } else {
+        drawMetaPyramid(active, x, y, up, pyramids.length);
+        return;
+      }
     }
   }
 }
 
-/* ================= META PYRAMID ================= */
-function drawMetaPyramid(pyramid, x, y, up) {
-  let pw = SIZE * ROWS;
-  let ph = H * ROWS;
-
+function drawMetaPyramid(pyr, x, y, up, index) {
   push();
   translate(x, y);
 
-  // flip inside slot (doesn't affect layout)
   if (!up) {
-    translate(pw / 2, ph / 2);
+    translate(SIZE * ROWS / 2, H * ROWS / 2);
     scale(1, -1);
-    translate(-pw / 2, -ph / 2);
+    translate(-SIZE * ROWS / 2, -H * ROWS / 2);
   }
 
-  // inverted meta-slot builds "from the tip" visually
-  drawPyramid(pyramid, !up);
-
+  drawPyramid(pyr, !up, index);
   pop();
 }
 
-/* ================= PYRAMID ================= */
-function drawPyramid(tris, invertBuild = false) {
+/* ================= DRAW TRIANGLES ================= */
+function drawPyramid(tris, invert, index) {
+  let theme = THEMES[currentTheme];
   let filled = tris.length;
-  let threshold = MAX_TRIANGLES - filled;
+  let skip = MAX_TRIANGLES - filled;
   let count = 0;
 
-  for (let row = 0; row < ROWS; row++) {
-    let inRow = row * 2 + 1;
-    let y = row * H;
-    let startX = -(inRow * SIZE) / 4;
+  for (let r = 0; r < ROWS; r++) {
+    let n = r * 2 + 1;
+    let y = r * H;
+    let startX = -(n * SIZE) / 4;
 
-    for (let i = 0; i < inRow; i++) {
-      if (!invertBuild && count >= filled) return;
-
-      // For inverted build, draw only the "last N" cells, which become the "top" after flipping
-      if (invertBuild && count < threshold) {
+    for (let i = 0; i < n; i++) {
+      if (!invert && count >= filled) return;
+      if (invert && count < skip) {
         count++;
         continue;
       }
 
-      let isEdge = i === 0 || i === inRow - 1;
-      let up = isEdge || i % 2 === 0;
+      let up = i === 0 || i === n - 1 || i % 2 === 0;
       let x = startX + i * (SIZE / 2);
 
-      fill(up ? "#4CAF50" : "#A5D6A7");
-      stroke(0);
+      let glow = theme.glow;
+      drawingContext.shadowBlur = index === pyramids.length ? 10 : 6;
+      drawingContext.shadowColor = `rgba(${glow[0]},${glow[1]},${glow[2]},0.4)`;
 
-      if (up) triangle(x, y + H, x + SIZE / 2, y, x + SIZE, y + H);
-      else triangle(x, y, x + SIZE, y, x + SIZE / 2, y + H);
+      stroke(glow[0], glow[1], glow[2], 140);
+      strokeWeight(index === pyramids.length ? 1.8 : 1.2);
+      fill(up ? theme.fill : theme.inverted);
+
+      up
+        ? triangle(x, y + H, x + SIZE / 2, y, x + SIZE, y + H)
+        : triangle(x, y, x + SIZE, y, x + SIZE / 2, y + H);
 
       count++;
     }
@@ -224,7 +178,6 @@ function addProgress() {
   active.push(1);
   playReward();
 
-  // Level up check (based on total XP, not pyramids)
   let before = getLevelInfo().level;
 
   if (active.length === MAX_TRIANGLES) {
@@ -233,52 +186,14 @@ function addProgress() {
     playCompletionChord();
   }
 
-  saveData();
-
   let after = getLevelInfo().level;
   if (after > before) {
-    levelPulse = 1;          // start pulse
-    playLevelUpSound();      // special sound
-    lastLevel = after;
+    levelPulse = 1;
+    playLevelUpSound();
   }
 
+  saveData();
   updateStatus();
-}
-
-/* ================= SOUND ================= */
-function playReward() {
-  rewardSound.freq(random(650, 900));
-  rewardSound.amp(0.4, 0.01);
-  rewardSound.amp(0, 0.2);
-}
-
-function playCompletionChord() {
-  completeOsc1.freq(440);
-  completeOsc2.freq(554);
-  completeOsc3.freq(659);
-
-  completeOsc1.amp(0.3, 0.05);
-  completeOsc2.amp(0.3, 0.05);
-  completeOsc3.amp(0.3, 0.05);
-
-  completeOsc1.amp(0, 0.6);
-  completeOsc2.amp(0, 0.6);
-  completeOsc3.amp(0, 0.6);
-}
-
-function playLevelUpSound() {
-  // slightly brighter "level-up" chord
-  completeOsc1.freq(523); // C
-  completeOsc2.freq(659); // E
-  completeOsc3.freq(784); // G
-
-  completeOsc1.amp(0.35, 0.03);
-  completeOsc2.amp(0.35, 0.03);
-  completeOsc3.amp(0.35, 0.03);
-
-  completeOsc1.amp(0, 0.7);
-  completeOsc2.amp(0, 0.7);
-  completeOsc3.amp(0, 0.7);
 }
 
 /* ================= LEVEL SYSTEM ================= */
@@ -288,144 +203,84 @@ function getTotalXP() {
 
 function getLevelInfo() {
   let xp = getTotalXP();
-
-  // Level is the largest L such that L(L+1)/2 <= xp
   let level = Math.floor((Math.sqrt(8 * xp + 1) - 1) / 2);
-
-  // next threshold for level+1
-  let currentThreshold = (level * (level + 1)) / 2;
-
-
-  // current threshold for this level
-  let nextThreshold = ((level + 1) * (level + 2)) / 2;
-
-
-  return {
-    level,
-    xp,
-    currentThreshold,
-    nextThreshold
-  };
+  let current = (level * (level + 1)) / 2;
+  let next = ((level + 1) * (level + 2)) / 2;
+  return { level, xp, current, next };
 }
 
 /* ================= UI ================= */
 function updateStatus() {
   let info = getLevelInfo();
-
-  // CUMULATIVE display (what you described)
-  // Level 1: 0/1
-  // Level 2: 1/3
-  // Level 3: 3/6
-  let currentXP = info.xp;
-  let nextXP = info.nextThreshold;
+  let into = info.xp - info.current;
+  let size = info.next - info.current;
 
   document.getElementById("statusText").innerText =
-    `Level ${info.level} — ${currentXP}/${nextXP} XP ` +
-    `(Active: ${active.length} | Completed Pyramids: ${pyramids.length})`;
+    `Level ${info.level} — ${info.xp}/${info.next} XP | Active: ${active.length} | Completed: ${pyramids.length}`;
 
-  // XP bar should match the same logic (cumulative)
-  let bar = document.getElementById("xp-bar");
-  if (bar) {
-    let intoLevel = info.xp - info.currentThreshold;
-    let levelSize = info.nextThreshold - info.currentThreshold;
-
-    let pct = levelSize === 0 ? 100 : (intoLevel / levelSize) * 100;
-    bar.style.width = constrain(pct, 0, 100) + "%";
-    }
-
-
+  document.getElementById("xp-bar").style.width =
+    `${(into / size) * 100}%`;
 }
-
-
 
 function drawFocusInfo() {
-  let pyramidNumber = pyramids.length + 1;
-  let filled = active.length;
-  let remaining = MAX_TRIANGLES - filled;
-
-  push();
-  resetMatrix();
-  fill(60);
+  fill(50);
   textAlign(CENTER);
-  textSize(14);
-
+  textSize(15);
   text(
-    `Pyramid ${pyramidNumber}\n` +
-    `${filled} / ${MAX_TRIANGLES} triangles\n` +
-    `${remaining} remaining`,
+    `Pyramid ${pyramids.length + 1}\n${active.length}/${MAX_TRIANGLES} triangles`,
     width / 2,
-    height - 70
+    height - 60
   );
-  pop();
 }
 
+/* ================= UTIL ================= */
+function computeAutoScale() {
+  let rows = Math.ceil(Math.sqrt(pyramids.length + 1));
+  let pw = SIZE * ROWS;
+  let ph = H * ROWS;
+  return min((width * 0.85) / ((2 * rows - 1) * pw / 2), (height * 0.85) / (rows * ph), 1);
+}
 
+function cycleTheme() {
+  let keys = Object.keys(THEMES);
+  currentTheme = keys[(keys.indexOf(currentTheme) + 1) % keys.length];
+}
 
 /* ================= STORAGE ================= */
 function saveData() {
   localStorage.setItem("triangleSystem", JSON.stringify({ pyramids, active }));
 }
-
 function loadData() {
-  let saved = localStorage.getItem("triangleSystem");
-  if (saved) {
-    let data = JSON.parse(saved);
-    pyramids = data.pyramids || [];
-    active = data.active || [];
+  let d = JSON.parse(localStorage.getItem("triangleSystem"));
+  if (d) {
+    pyramids = d.pyramids || [];
+    active = d.active || [];
   }
 }
-
-/* ================= RESET ================= */
 function resetAll() {
   pyramids = [];
   active = [];
   saveData();
-
-  lastLevel = getLevelInfo().level;
-  levelPulse = 0;
-
   updateStatus();
 }
 
-/* ================= AUTO CAMERA ================= */
-function computeAutoScale() {
-  // total meta slots (completed + active)
-  let total = pyramids.length + 1;
-
-  // number of meta rows needed (1, 3, 5, ... → r²)
-  let rows = Math.ceil(Math.sqrt(total));
-
-  let pw = SIZE * ROWS;
-  let ph = H * ROWS;
-
-  // REAL bounds based on YOUR layout
-  let totalWidth =
-    (2 * rows - 1) * (pw / 2) + pw;
-
-  let totalHeight =
-    rows * ph;
-
-  let scaleX = (width * 0.8) / totalWidth;
-  let scaleY = (height * 0.8) / totalHeight;
-
-  return min(scaleX, scaleY, 1);
+/* ================= SOUND ================= */
+function playReward() {
+  rewardSound.freq(random(700, 900));
+  rewardSound.amp(0.4, 0.01);
+  rewardSound.amp(0, 0.2);
 }
-
-
-
-function getTriangleColor(isUp, pyramidIndex) {
-  let theme = THEMES[currentTheme];
-
-  // Active pyramid
-  if (pyramidIndex === pyramids.length) {
-    return isUp ? theme.active : theme.inverted;
-  }
-
-  // Most recently completed pyramid
-  if (pyramidIndex === pyramids.length - 1) {
-    return isUp ? theme.recent : theme.inverted;
-  }
-
-  // Older pyramids
-  return isUp ? theme.settled : theme.inverted;
+function playCompletionChord() {
+  [osc1, osc2, osc3].forEach((o, i) => {
+    o.freq([440, 554, 659][i]);
+    o.amp(0.3, 0.05);
+    o.amp(0, 0.6);
+  });
+}
+function playLevelUpSound() {
+  [osc1, osc2, osc3].forEach((o, i) => {
+    o.freq([523, 659, 784][i]);
+    o.amp(0.35, 0.03);
+    o.amp(0, 0.7);
+  });
 }
