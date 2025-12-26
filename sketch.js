@@ -40,6 +40,15 @@ let levelPulse = 0;
 /* ================= SOUND ================= */
 let rewardSound, osc1, osc2, osc3;
 
+/* ================= VISUAL FX (NEW) =================
+   - sparkles: ambient floating lights around pyramid
+   - confetti: burst when level increases
+   - glowPulse: stronger halo moment on level up
+*/
+let sparkles = [];
+let confetti = [];
+let glowPulse = 0;
+
 /* ================= PRELOAD ================= */
 function preload() {
   rewardSound = new p5.Oscillator("triangle");
@@ -50,8 +59,10 @@ function preload() {
 
 /* ================= SETUP ================= */
 function setup() {
+  // Canvas size (desktop friendly). We'll also support resize for mobile.
   createCanvas(700, 500).parent("canvas-container");
 
+  // Audio setup
   [rewardSound, osc1, osc2, osc3].forEach(o => {
     o.start();
     o.amp(0);
@@ -59,25 +70,47 @@ function setup() {
 
   loadData();
   updateStatus();
+  seedSparkles();
 
+  // Buttons
   document.getElementById("addBtn").onclick = addProgress;
   document.getElementById("focusBtn").onclick = () => viewMode = "focus";
   document.getElementById("showAllBtn").onclick = () => viewMode = "all";
   document.getElementById("resetBtn").onclick = resetAll;
   document.getElementById("themeBtn").onclick = cycleTheme;
+
+  // Dark mode toggle (NEW)
+  const modeBtn = document.getElementById("modeBtn");
+  if (modeBtn) {
+    modeBtn.onclick = toggleDarkMode;
+    syncModeButton();
+  }
 }
 
 /* ================= DRAW ================= */
 function draw() {
-  background(255);
+  // Background of the canvas (matches the card style)
+  drawCanvasBackground();
 
+  // Smooth camera scale transitions
   camScale = lerp(camScale, targetCamScale, 0.08);
 
+  // Level pulse (your existing zoom pulse)
   if (levelPulse > 0.01) {
     camScale *= 1 + levelPulse * 0.05;
     levelPulse *= 0.88;
   }
 
+  // Additional glow pulse (NEW)
+  if (glowPulse > 0.01) {
+    glowPulse *= 0.90;
+  }
+
+  // Draw sparkles + confetti in canvas-space (not affected by camScale)
+  updateAndDrawSparkles();
+  updateAndDrawConfetti();
+
+  // Draw pyramid in pyramid-space (affected by camScale)
   push();
   translate(width / 2, 90);
   scale(camScale);
@@ -85,13 +118,22 @@ function draw() {
   viewMode === "all" ? drawAllPyramids() : drawActivePyramid();
   pop();
 
+  // Focus text under canvas card (DOM)
   if (viewMode === "focus") drawFocusInfo();
 }
 
 /* ================= DRAW PYRAMIDS ================= */
 function drawActivePyramid() {
   targetCamScale = 1;
+
+  // NEW: big outer halo glow around the whole pyramid (looks like your reference)
+  drawPyramidHalo(false, pyramids.length);
+
+  // Draw the triangles
   drawPyramid(active, false, pyramids.length);
+
+  // NEW: base glow line under pyramid (reference has a ground glow)
+  drawBaseGlow();
 }
 
 function drawAllPyramids() {
@@ -130,7 +172,10 @@ function drawMetaPyramid(pyr, x, y, up, index) {
     translate(-SIZE * ROWS / 2, -H * ROWS / 2);
   }
 
+  // NEW: slightly softer halo for “all view”
+  drawPyramidHalo(!up, index, true);
   drawPyramid(pyr, !up, index);
+
   pop();
 }
 
@@ -156,12 +201,14 @@ function drawPyramid(tris, invert, index) {
       let up = i === 0 || i === n - 1 || i % 2 === 0;
       let x = startX + i * (SIZE / 2);
 
+      // Slight triangle glow (kept), but the MAIN halo is now done by drawPyramidHalo()
       let glow = theme.glow;
-      drawingContext.shadowBlur = index === pyramids.length ? 10 : 6;
-      drawingContext.shadowColor = `rgba(${glow[0]},${glow[1]},${glow[2]},0.4)`;
+      drawingContext.shadowBlur = index === pyramids.length ? 8 : 5;
+      drawingContext.shadowColor = `rgba(${glow[0]},${glow[1]},${glow[2]},0.25)`;
 
-      stroke(glow[0], glow[1], glow[2], 140);
-      strokeWeight(index === pyramids.length ? 1.8 : 1.2);
+      stroke(glow[0], glow[1], glow[2], 150);
+      strokeWeight(index === pyramids.length ? 1.6 : 1.1);
+
       fill(up ? theme.fill : theme.inverted);
 
       up
@@ -173,22 +220,110 @@ function drawPyramid(tris, invert, index) {
   }
 }
 
+/* ================= PYRAMID HALO (NEW) =================
+   This draws a BIG glow around the outer triangle only,
+   so it matches your reference better (not per triangle).
+*/
+function drawPyramidHalo(invert, index, isAllView = false) {
+  // Only glow strongly for the active pyramid (focus),
+  // and softer when showing all.
+  const isActivePyramid = index === pyramids.length;
+  const strength = isActivePyramid ? 1 : 0.55;
+
+  let theme = THEMES[currentTheme];
+  let g = theme.glow;
+
+  // Outer triangle points in pyramid space
+  const n = (ROWS * 2 - 1);
+  const leftX = -(n * SIZE) / 4;
+  const rightX = ((n + 2) * SIZE) / 4;
+  const baseY = ROWS * H;
+  const topX = SIZE / 4;
+  const topY = 0;
+
+  // If inverted in meta grid, halo should follow that orientation too.
+  // (Our meta pyramid flips via transform before calling this, so coords still work.)
+
+  push();
+  noFill();
+
+  // The reference has a warm gold bloom.
+  // We layer strokes to create a “bloom” look.
+  const pulseBoost = (glowPulse * 0.9);
+
+  // Outer soft glow
+  drawingContext.shadowColor = `rgba(${g[0]},${g[1]},${g[2]},${0.35 * strength})`;
+  drawingContext.shadowBlur = (isAllView ? 18 : 32) * strength + 40 * pulseBoost;
+
+  // Fat strokes behind
+  stroke(g[0], g[1], g[2], 35 * strength);
+  strokeWeight((isAllView ? 18 : 26) * strength + 10 * pulseBoost);
+  triangle(leftX, baseY, topX, topY, rightX, baseY);
+
+  // Mid glow
+  drawingContext.shadowBlur = (isAllView ? 12 : 18) * strength + 22 * pulseBoost;
+  stroke(g[0], g[1], g[2], 70 * strength);
+  strokeWeight((isAllView ? 6 : 9) * strength + 4 * pulseBoost);
+  triangle(leftX, baseY, topX, topY, rightX, baseY);
+
+  // Crisp outline
+  drawingContext.shadowBlur = (isAllView ? 6 : 10) * strength + 10 * pulseBoost;
+  stroke(g[0], g[1], g[2], 160 * strength);
+  strokeWeight((isAllView ? 1.6 : 2.2) * strength + 1.5 * pulseBoost);
+  triangle(leftX, baseY, topX, topY, rightX, baseY);
+
+  pop();
+}
+
+/* ================= BASE GLOW (NEW) =================
+   A subtle glow “ground line” under the pyramid.
+*/
+function drawBaseGlow() {
+  let theme = THEMES[currentTheme];
+  let g = theme.glow;
+
+  const n = (ROWS * 2 - 1);
+  const leftX = -(n * SIZE) / 4;
+  const rightX = ((n + 2) * SIZE) / 4;
+  const baseY = ROWS * H;
+
+  push();
+  noFill();
+  strokeCap(ROUND);
+
+  drawingContext.shadowColor = `rgba(${g[0]},${g[1]},${g[2]},0.35)`;
+  drawingContext.shadowBlur = 22 + glowPulse * 35;
+
+  stroke(g[0], g[1], g[2], 75);
+  strokeWeight(10 + glowPulse * 10);
+  line(leftX + 18, baseY + 18, rightX - 18, baseY + 18);
+
+  pop();
+}
+
 /* ================= PROGRESS ================= */
 function addProgress() {
+  // Add one triangle
   active.push(1);
   playReward();
 
   let before = getLevelInfo().level;
 
+  // When pyramid completes, store it and reset active
   if (active.length === MAX_TRIANGLES) {
     pyramids.push([...active]);
     active = [];
     playCompletionChord();
   }
 
+  // Check level up AFTER adding progress
   let after = getLevelInfo().level;
   if (after > before) {
     levelPulse = 1;
+
+    // NEW FX on level up
+    glowPulse = 1;
+    spawnConfettiBurst();
     playLevelUpSound();
   }
 
@@ -215,32 +350,32 @@ function updateStatus() {
   let into = info.xp - info.current;
   let size = info.next - info.current;
 
-  document.getElementById("statusText").innerText =
-    `Level ${info.level} — ${info.xp}/${info.next} XP | Active: ${active.length} | Completed: ${pyramids.length}`;
-
+  // % into current level
   let pct = (into / size) * 100;
 
-/* UX FIX:
-   If next action completes the level,
-   show the bar as full */
-if (info.xp + 1 >= info.next) {
-  pct = 100;
-}
+  /* UX FIX:
+     If next action completes the level,
+     show the bar as full (so user “sees” completion) */
+  if (info.xp + 1 >= info.next) pct = 100;
 
-document.getElementById("xp-bar").style.width =
-  constrain(pct, 0, 100) + "%";
+  pct = constrain(pct, 0, 100);
 
+  // Top UI
+  document.getElementById("levelText").innerText = `Lv ${info.level}`;
+  document.getElementById("xpText").innerText = `${info.xp} / ${info.next} XP`;
+  document.getElementById("xpPercent").innerText = `${Math.round(pct)}%`;
+
+  document.getElementById("activeCount").innerText = active.length;
+  document.getElementById("completedCount").innerText = pyramids.length;
+
+  // XP bar
+  document.getElementById("xp-bar").style.width = pct + "%";
+  document.getElementById("xp-bar-label").innerText = `${Math.round(pct)}%`;
 }
 
 function drawFocusInfo() {
-  fill(50);
-  textAlign(CENTER);
-  textSize(15);
-  text(
-    `Pyramid ${pyramids.length + 1}\n${active.length}/${MAX_TRIANGLES} triangles`,
-    width / 2,
-    height - 60
-  );
+  document.getElementById("focusInfo").innerText =
+    `Pyramid ${pyramids.length + 1} • ${active.length}/${MAX_TRIANGLES} triangles`;
 }
 
 /* ================= UTIL ================= */
@@ -248,12 +383,19 @@ function computeAutoScale() {
   let rows = Math.ceil(Math.sqrt(pyramids.length + 1));
   let pw = SIZE * ROWS;
   let ph = H * ROWS;
-  return min((width * 0.75) / ((2 * rows - 1) * pw / 2), (height * 0.75) / (rows * ph), 1);
+  return min(
+    (width * 0.75) / ((2 * rows - 1) * pw / 2),
+    (height * 0.75) / (rows * ph),
+    1
+  );
 }
 
 function cycleTheme() {
   let keys = Object.keys(THEMES);
   currentTheme = keys[(keys.indexOf(currentTheme) + 1) % keys.length];
+
+  // Refresh sparkles color vibe a bit when theme changes
+  seedSparkles(true);
 }
 
 /* ================= STORAGE ================= */
@@ -293,4 +435,197 @@ function playLevelUpSound() {
     o.amp(0.35, 0.03);
     o.amp(0, 0.7);
   });
+}
+
+/* ================= DARK MODE (NEW) ================= */
+function toggleDarkMode() {
+  document.body.classList.toggle("dark");
+  localStorage.setItem("triangle_darkmode", document.body.classList.contains("dark") ? "1" : "0");
+  syncModeButton();
+}
+
+function syncModeButton() {
+  const modeBtn = document.getElementById("modeBtn");
+  if (!modeBtn) return;
+
+  const isDark = localStorage.getItem("triangle_darkmode") === "1";
+  document.body.classList.toggle("dark", isDark);
+  modeBtn.innerText = document.body.classList.contains("dark") ? "Light" : "Dark";
+}
+
+// Load saved dark mode on start
+(function initDarkMode() {
+  const isDark = localStorage.getItem("triangle_darkmode") === "1";
+  document.body.classList.toggle("dark", isDark);
+})();
+
+/* ================= CANVAS BACKGROUND (NEW) =================
+   Gives the canvas that subtle soft-card look.
+*/
+function drawCanvasBackground() {
+  const isDark = document.body.classList.contains("dark");
+
+  // Smooth gradient
+  if (!isDark) {
+    background(255);
+    // subtle vignette
+    noStroke();
+    for (let i = 0; i < 12; i++) {
+      fill(0, 0, 0, 4);
+      rect(0 + i, 0 + i, width - i * 2, height - i * 2, 18);
+    }
+  } else {
+    background(10, 14, 30);
+    // subtle glow fog
+    noStroke();
+    for (let i = 0; i < 14; i++) {
+      fill(255, 255, 255, 2);
+      rect(0 + i, 0 + i, width - i * 2, height - i * 2, 18);
+    }
+  }
+}
+
+/* ================= SPARKLES (NEW) =================
+   Floating lights/circles like the reference “particles”.
+*/
+function seedSparkles(softReset = false) {
+  if (softReset) {
+    // Keep some, don’t hard reset (nicer)
+    sparkles = sparkles.slice(0, 12);
+  } else {
+    sparkles = [];
+  }
+
+  while (sparkles.length < 22) {
+    sparkles.push(makeSparkle());
+  }
+}
+
+function makeSparkle() {
+  let theme = THEMES[currentTheme];
+  let g = theme.glow;
+
+  return {
+    x: random(width),
+    y: random(height),
+    r: random(1.5, 4.5),
+    a: random(40, 140),
+    va: random(0.4, 1.2),
+    vx: random(-0.22, 0.22),
+    vy: random(-0.30, -0.06),
+    hue: [g[0], g[1], g[2]],
+  };
+}
+
+function updateAndDrawSparkles() {
+  let theme = THEMES[currentTheme];
+  let g = theme.glow;
+
+  // Keep them “around the pyramid area”
+  const centerX = width / 2;
+  const centerY = height / 2;
+
+  noStroke();
+  for (let s of sparkles) {
+    // twinkle
+    s.a += sin(frameCount * 0.02) * s.va;
+
+    // drift
+    s.x += s.vx;
+    s.y += s.vy;
+
+    // wrap
+    if (s.y < -20) {
+      s.y = height + 20;
+      s.x = random(width);
+    }
+    if (s.x < -20) s.x = width + 20;
+    if (s.x > width + 20) s.x = -20;
+
+    // draw
+    drawingContext.shadowBlur = 18;
+    drawingContext.shadowColor = `rgba(${g[0]},${g[1]},${g[2]},0.25)`;
+
+    fill(g[0], g[1], g[2], constrain(s.a, 0, 170));
+    circle(s.x, s.y, s.r);
+
+    // small white core
+    drawingContext.shadowBlur = 0;
+    fill(255, 255, 255, 120);
+    circle(s.x, s.y, s.r * 0.45);
+  }
+}
+
+/* ================= CONFETTI (NEW) =================
+   Burst on level up.
+*/
+function spawnConfettiBurst() {
+  let theme = THEMES[currentTheme];
+  let g = theme.glow;
+
+  const burstX = width / 2;
+  const burstY = height * 0.33;
+
+  for (let i = 0; i < 90; i++) {
+    confetti.push({
+      x: burstX + random(-20, 20),
+      y: burstY + random(-20, 20),
+      vx: random(-2.4, 2.4),
+      vy: random(-4.2, -1.2),
+      grav: random(0.06, 0.12),
+      life: random(40, 85),
+      size: random(2.0, 5.0),
+      rot: random(TWO_PI),
+      vr: random(-0.22, 0.22),
+      c: random() < 0.55 ? [g[0], g[1], g[2]] : [255, 255, 255],
+    });
+  }
+}
+
+function updateAndDrawConfetti() {
+  if (confetti.length === 0) return;
+
+  for (let i = confetti.length - 1; i >= 0; i--) {
+    const p = confetti[i];
+
+    p.vy += p.grav;
+    p.x += p.vx;
+    p.y += p.vy;
+    p.rot += p.vr;
+    p.life -= 1;
+
+    // draw
+    push();
+    translate(p.x, p.y);
+    rotate(p.rot);
+
+    drawingContext.shadowBlur = 16;
+    drawingContext.shadowColor = `rgba(${p.c[0]},${p.c[1]},${p.c[2]},0.22)`;
+
+    noStroke();
+    fill(p.c[0], p.c[1], p.c[2], map(p.life, 0, 85, 0, 180));
+    rectMode(CENTER);
+    rect(0, 0, p.size * 1.6, p.size * 0.9, 2);
+    pop();
+
+    if (p.life <= 0 || p.y > height + 30) {
+      confetti.splice(i, 1);
+    }
+  }
+}
+
+/* ================= RESIZE (NEW) =================
+   Keeps it usable on mobile sizes.
+*/
+function windowResized() {
+  // Make canvas responsive but not tiny
+  const maxW = 700;
+  const pad = 40;
+  const w = min(maxW, windowWidth - pad);
+  const h = 500;
+
+  resizeCanvas(max(320, w), h);
+
+  // Reseed sparkles to match new size
+  seedSparkles(false);
 }

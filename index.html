@@ -1,48 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <title>Triangle Progress</title>
 
-  <!-- ✅ MOBILE FIX: stops double-tap zoom & weird scaling -->
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-  >
+  <!-- Mobile UX Fix (prevents zoom / improves tapping) -->
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
 
-  <title>Triangle Progress System</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <div class="app">
+<div class="app">
 
-    <h1>Triangle Progress</h1>
+  <h1 class="title">Triangle Progress</h1>
 
-    <!-- Controls -->
-    <div class="controls">
-      <button id="addBtn" class="primary">Add Progress</button>
-      <button id="focusBtn">Focus</button>
-      <button id="showAllBtn">Show All</button>
-      <button id="themeBtn">Theme</button>
-      <button id="resetBtn" class="danger">Reset</button>
-    </div>
+  <!-- XP CARD -->
+  <div class="xp-card">
 
-    <!-- Status -->
-    <div class="status">
-      <div id="statusText"></div>
+    <div class="xp-header">
+      <div class="level-pill" id="levelText">Lv 1</div>
 
-      <div class="xp-track">
-        <div id="xp-bar"></div>
+      <div class="xp-info">
+        <div id="xpText">0 / 0 XP</div>
+        <div id="xpPercent">0%</div>
       </div>
     </div>
 
-    <!-- Canvas -->
-    <div id="canvas-container"></div>
+    <div class="xp-track">
+      <div id="xp-bar">
+        <span id="xp-bar-label">0%</span>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        🟢 Active <strong id="activeCount">0</strong>
+      </div>
+      <div class="stat">
+        🏆 Completed <strong id="completedCount">0</strong>
+      </div>
+    </div>
 
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/addons/p5.sound.min.js"></script>
-  <script src="sketch.js"></script>
+  <!-- PYRAMID CARD -->
+  <div class="canvas-card">
+    <div id="canvas-container"></div>
+    <div id="focusInfo" class="focus-info"></div>
+  </div>
+
+  <!-- CONTROLS (bottom like your reference) -->
+  <div class="controls">
+    <button id="addBtn" class="primary">Add Progress</button>
+    <button id="focusBtn">Focus</button>
+    <button id="showAllBtn">Show All</button>
+    <button id="themeBtn">Theme</button>
+    <button id="modeBtn">Dark</button>
+    <button id="resetBtn" class="danger">Reset</button>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/addons/p5.sound.min.js"></script>
+<script src="sketch.js"></script>
 </body>
 </html>

@@ -1,118 +1,314 @@
-/* ===== Reset & Base ===== */
+/* ===== RESET ===== */
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  height: 100%;
 }
 
 body {
   margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: radial-gradient(circle at top, #f8fafc, #e5e7eb);
-  color: #1f2933;
-  touch-action: manipulation; /* ✅ mobile tap fix */
-}
-
-/* ===== App Card ===== */
-.app {
-  max-width: 900px;
-  margin: 20px auto;
-  padding: 26px 28px 34px;
-  background: #ffffff;
-  border-radius: 18px;
-  box-shadow:
-    0 10px 25px rgba(0,0,0,0.08),
-    0 2px 6px rgba(0,0,0,0.05);
-}
-
-/* ===== Title ===== */
-h1 {
-  margin: 0 0 22px;
-  font-size: 28px;
-  font-weight: 700;
-}
-
-/* ===== Controls ===== */
-.controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 18px;
-}
-
-button {
-  appearance: none;
-  border: none;
-  min-height: 48px;
-  padding: 12px 18px;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  background: #e5e7eb;
-  transition: all 0.15s ease;
-
-  /* ✅ mobile tap behaviour */
   touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+
+  /* Light mode background (matches your reference vibe) */
+  background:
+    radial-gradient(circle at 20% 0%, rgba(34,197,94,0.12), transparent 45%),
+    radial-gradient(circle at 100% 30%, rgba(59,130,246,0.10), transparent 40%),
+    radial-gradient(circle at 0% 100%, rgba(16,185,129,0.10), transparent 45%),
+    #eef2f7;
+
+  color: #111827;
 }
 
-button:hover {
-  transform: translateY(-1px);
+/* ===== DARK MODE (toggle via body.dark) ===== */
+body.dark {
+  color: #e5e7eb;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(99,102,241,0.18), transparent 48%),
+    radial-gradient(circle at 100% 35%, rgba(34,197,94,0.12), transparent 45%),
+    radial-gradient(circle at 0% 100%, rgba(168,85,247,0.12), transparent 45%),
+    #0b1020;
 }
 
-button.primary {
-  background: linear-gradient(135deg, #22c55e, #16a34a);
+/* ===== APP CARD ===== */
+.app {
+  max-width: 920px;
+  margin: 28px auto;
+  padding: 24px;
+  border-radius: 28px;
+
+  background: rgba(255,255,255,0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+
+  box-shadow:
+    0 30px 60px rgba(0,0,0,0.16),
+    0 6px 18px rgba(0,0,0,0.08);
+
+  border: 1px solid rgba(255,255,255,0.6);
+}
+
+body.dark .app {
+  background: rgba(18, 24, 45, 0.72);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow:
+    0 30px 70px rgba(0,0,0,0.55),
+    0 6px 18px rgba(0,0,0,0.35);
+}
+
+/* ===== TITLE ===== */
+.title {
+  margin: 0 0 18px;
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: -0.4px;
+}
+
+/* ===== XP CARD ===== */
+.xp-card {
+  border-radius: 22px;
+  padding: 18px;
+  margin-bottom: 18px;
+
+  background: rgba(255,255,255,0.65);
+  border: 1px solid rgba(0,0,0,0.04);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.25),
+    0 14px 30px rgba(0,0,0,0.10);
+}
+
+body.dark .xp-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.07);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.06),
+    0 14px 30px rgba(0,0,0,0.35);
+}
+
+.xp-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.level-pill {
+  min-width: 80px;
+  text-align: center;
+  padding: 12px 14px;
+  border-radius: 999px;
+
+  background: linear-gradient(135deg,#22c55e,#4ade80);
   color: white;
+  font-weight: 900;
+
+  box-shadow:
+    0 10px 22px rgba(34,197,94,0.45),
+    0 0 24px rgba(34,197,94,0.25);
 }
 
-button.danger {
-  background: #fee2e2;
-  color: #991b1b;
+body.dark .level-pill {
+  background: linear-gradient(135deg,#3b82f6,#06b6d4);
+  box-shadow:
+    0 10px 22px rgba(59,130,246,0.45),
+    0 0 26px rgba(34,211,238,0.25);
 }
 
-/* ===== Status ===== */
-.status {
-  margin-bottom: 22px;
+.xp-info {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  opacity: 0.95;
 }
 
-#statusText {
-  font-size: 14px;
-  margin-bottom: 10px;
-}
-
-/* ===== XP Bar ===== */
+/* ===== XP BAR ===== */
 .xp-track {
-  width: 100%;
-  height: 14px;
-  background: #e5e7eb;
+  height: 18px;
   border-radius: 999px;
   overflow: hidden;
+
+  background: rgba(148,163,184,0.25);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.04);
+}
+
+body.dark .xp-track {
+  background: rgba(148,163,184,0.14);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
 }
 
 #xp-bar {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, #22c55e, #4ade80, #22c55e);
+  position: relative;
+
+  background: linear-gradient(90deg,#22c55e,#4ade80,#22c55e);
   box-shadow:
-    0 0 10px rgba(34,197,94,0.7),
-    inset 0 0 6px rgba(255,255,255,0.35);
-  border-radius: 999px;
-  transition: width 0.3s ease;
+    0 0 18px rgba(34,197,94,0.85),
+    0 0 40px rgba(34,197,94,0.25),
+    inset 0 0 10px rgba(255,255,255,0.35);
+
+  transition: width 0.35s ease;
 }
 
-/* ===== Canvas ===== */
+body.dark #xp-bar {
+  background: linear-gradient(90deg,#3b82f6,#22d3ee,#3b82f6);
+  box-shadow:
+    0 0 18px rgba(34,211,238,0.65),
+    0 0 46px rgba(59,130,246,0.25),
+    inset 0 0 10px rgba(255,255,255,0.18);
+}
+
+#xp-bar-label {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  color: rgba(3, 55, 33, 0.85);
+  text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+}
+
+body.dark #xp-bar-label {
+  color: rgba(240, 249, 255, 0.92);
+  text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+}
+
+/* ===== STATS ===== */
+.stats {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.stat {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: 16px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 800;
+
+  background: rgba(241,245,249,0.8);
+  border: 1px solid rgba(0,0,0,0.04);
+}
+
+body.dark .stat {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+/* ===== PYRAMID CARD ===== */
+.canvas-card {
+  border-radius: 24px;
+  padding: 18px;
+  margin-bottom: 18px;
+
+  background: rgba(255,255,255,0.62);
+  border: 1px solid rgba(0,0,0,0.04);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.25),
+    0 18px 34px rgba(0,0,0,0.10);
+}
+
+body.dark .canvas-card {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.07);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.06),
+    0 18px 34px rgba(0,0,0,0.45);
+}
+
 #canvas-container {
   display: flex;
   justify-content: center;
-  padding-top: 22px;
 }
 
 canvas {
-  background: #ffffff;
-  border-radius: 14px;
-  box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,0.08),
-    0 10px 24px rgba(0,0,0,0.12);
+  border-radius: 18px;
+}
 
-  /* ✅ stops canvas stealing gestures */
-  touch-action: none;
+.focus-info {
+  text-align: center;
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+/* ===== CONTROLS (bottom like reference) ===== */
+.controls {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+/* Larger tap targets for mobile */
+button {
+  border: none;
+  padding: 14px 16px;
+  border-radius: 16px;
+  font-weight: 900;
+  cursor: pointer;
+  background: rgba(229,231,235,0.95);
+  transition: transform 0.12s ease, filter 0.12s ease;
+  touch-action: manipulation;
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button.primary {
+  background: linear-gradient(135deg,#22c55e,#16a34a);
+  color: white;
+  box-shadow: 0 12px 24px rgba(34,197,94,0.30);
+}
+
+body.dark button.primary {
+  background: linear-gradient(135deg,#a855f7,#4f46e5);
+  box-shadow: 0 14px 28px rgba(168,85,247,0.22);
+}
+
+button.danger {
+  background: rgba(254,226,226,0.95);
+  color: #991b1b;
+}
+
+body.dark button {
+  background: rgba(255,255,255,0.08);
+  color: #e5e7eb;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+body.dark button.danger {
+  background: rgba(239,68,68,0.16);
+  color: #fecaca;
+  border: 1px solid rgba(239,68,68,0.18);
+}
+
+/* ===== MOBILE LAYOUT ===== */
+@media (max-width: 640px) {
+  .app {
+    margin: 14px;
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  .controls {
+    grid-template-columns: 1.4fr 1fr 1fr;
+    grid-auto-rows: 48px;
+  }
+
+  button {
+    padding: 14px 12px;
+    border-radius: 14px;
+  }
 }
