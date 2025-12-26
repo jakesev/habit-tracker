@@ -57,6 +57,21 @@ let sparkles = [];
 let confetti = [];
 let glowPulse = 0;
 
+/* ================= Unlock Audio ================= */
+let audioUnlocked = false;
+
+function unlockAudio() {
+  if (audioUnlocked) return;
+
+  const ctx = getAudioContext();
+  if (ctx.state !== "running") {
+    ctx.resume();
+  }
+
+  audioUnlocked = true;
+}
+
+
 /* ================= PRELOAD ================= */
 function preload() {
   rewardSound = new p5.Oscillator("triangle");
@@ -338,28 +353,36 @@ function drawBaseGlow() {
 
 /* ================= PROGRESS ================= */
 function addProgress() {
-  // Add one triangle
+  unlockAudio(); // 🔊 THIS FIXES THE ISSUE
+  
   active.push(1);
   playReward();
 
   let before = getLevelInfo().level;
+  let pyramidCompleted = false;
 
-  // When pyramid completes, store it and reset active
+  // 🎯 PYRAMID COMPLETE
   if (active.length === MAX_TRIANGLES) {
     pyramids.push([...active]);
     active = [];
+    pyramidCompleted = true;
     playCompletionChord();
   }
 
-  // Check level up AFTER adding progress
   let after = getLevelInfo().level;
+
+  // 🎉 LEVEL UP
   if (after > before) {
     levelPulse = 1;
-
-    // NEW FX on level up
     glowPulse = 1;
     spawnConfettiBurst();
     playLevelUpSound();
+  }
+
+  // 🎊 PYRAMID COMPLETION CONFETTI (THIS WAS MISSING)
+  if (pyramidCompleted) {
+    glowPulse = 1;
+    spawnConfettiBurst();
   }
 
   saveData();
@@ -598,30 +621,52 @@ function updateAndDrawSparkles() {
    Burst on level up.
 */
 function spawnConfettiBurst() {
+
+    
   let theme = THEMES[currentTheme];
   let g = theme.glow;
 
   const burstX = width / 2;
-  const burstY = height * 0.33;
+  const burstY = height * 0.15;
 
-  for (let i = 0; i < 90; i++) {
+  
+  // 🔥 CONTROL THESE 4 VALUES 🔥
+  const CONFETTI_COUNT = viewMode === "all" ? 60 : 120;  // amount
+  const SIZE_MIN = 2.5;           // size
+  const SIZE_MAX = 4.5;
+  const LIFE_MIN = 50;            // lifetime
+  const LIFE_MAX = 120;
+
+  for (let i = 0; i < CONFETTI_COUNT; i++) {
     confetti.push({
-      x: burstX + random(-20, 20),
+      x: burstX + random(-30, 30),
       y: burstY + random(-20, 20),
-      vx: random(-2.4, 2.4),
-      vy: random(-4.2, -1.2),
-      grav: random(0.06, 0.12),
-      life: random(40, 85),
-      size: random(2.0, 5.0),
+
+      // 🚀 BIGGER EXPLOSION
+      vx: random(-6.0, 6.0),
+      vy: random(-9.0, -3.5),
+
+      grav: random(0.08, 0.16),
+      life: random(LIFE_MIN, LIFE_MAX),
+
+      size: random(SIZE_MIN, SIZE_MAX),
+
       rot: random(TWO_PI),
-      vr: random(-0.22, 0.22),
-      c: random() < 0.55 ? [g[0], g[1], g[2]] : [255, 255, 255],
+      vr: random(-0.35, 0.35),
+
+      // gold + white mix
+      c: random() < 0.6
+        ? [g[0], g[1], g[2]]
+        : [255, 255, 255],
     });
   }
 }
 
+
 function updateAndDrawConfetti() {
   if (confetti.length === 0) return;
+
+  const useGlow = viewMode === "focus"; // 🔑 key optimisation
 
   for (let i = confetti.length - 1; i >= 0; i--) {
     const p = confetti[i];
@@ -632,13 +677,16 @@ function updateAndDrawConfetti() {
     p.rot += p.vr;
     p.life -= 1;
 
-    // draw
     push();
     translate(p.x, p.y);
     rotate(p.rot);
 
-    drawingContext.shadowBlur = 16;
-    drawingContext.shadowColor = `rgba(${p.c[0]},${p.c[1]},${p.c[2]},0.22)`;
+    if (useGlow) {
+      drawingContext.shadowBlur = 16;
+      drawingContext.shadowColor = `rgba(${p.c[0]},${p.c[1]},${p.c[2]},0.22)`;
+    } else {
+      drawingContext.shadowBlur = 0; // 🚀 removes lag
+    }
 
     noStroke();
     fill(p.c[0], p.c[1], p.c[2], map(p.life, 0, 85, 0, 180));
@@ -651,6 +699,7 @@ function updateAndDrawConfetti() {
     }
   }
 }
+
 
 /* ================= RESIZE (NEW) =================
    Keeps it usable on mobile sizes.
