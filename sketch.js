@@ -82,8 +82,9 @@ function setup() {
 
   // Buttons
   document.getElementById("addBtn").onclick = addProgress;
-  document.getElementById("focusBtn").onclick = () => viewMode = "focus";
-  document.getElementById("showAllBtn").onclick = () => viewMode = "all";
+  document.getElementById("focusBtn").onclick = () => setViewMode("focus");
+  document.getElementById("showAllBtn").onclick = () => setViewMode("all");
+
   document.getElementById("resetBtn").onclick = resetAll;
   document.getElementById("themeBtn").onclick = cycleTheme;
 
@@ -375,8 +376,11 @@ function updateStatus() {
   document.getElementById("levelText").innerText = `Lv ${info.level}`;
   document.getElementById("xpText").innerText = `${info.xp} / ${info.next} XP`;
   document.getElementById("xpPercent").innerText = `${Math.round(pct)}%`;
+  
+  const totalTriangles =
+  pyramids.length * MAX_TRIANGLES + active.length;
+  document.getElementById("activeCount").innerText = totalTriangles.toLocaleString();
 
-  document.getElementById("activeCount").innerText = active.length;
   document.getElementById("completedCount").innerText = pyramids.length;
 
   // XP bar
@@ -639,4 +643,21 @@ function windowResized() {
 
   // Reseed sparkles to match new size
   seedSparkles(false);
+}
+
+function setViewMode(mode) {
+  viewMode = mode;
+
+  // Snap camera immediately to avoid rubber-band zoom
+  if (mode === "focus") {
+    targetCamScale = 1;
+    camScale = 1;
+  } else {
+    targetCamScale = computeAutoScale();
+    camScale = targetCamScale;
+  }
+
+  // Cancel pulses so they don’t fight the transition
+  levelPulse = 0;
+  glowPulse = 0;
 }
