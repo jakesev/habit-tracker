@@ -68,7 +68,9 @@ function preload() {
 /* ================= SETUP ================= */
 function setup() {
   // Canvas size (desktop friendly). We'll also support resize for mobile.
-  createCanvas(700, 500).parent("canvas-container");
+  const { w, h } = getCanvasSize();
+  createCanvas(w, h).parent("canvas-container");
+
 
   // Audio setup
   [rewardSound, osc1, osc2, osc3].forEach(o => {
@@ -96,6 +98,25 @@ function setup() {
   }
 }
 
+function getCanvasSize() {
+  const isMobile = window.innerWidth < 768;
+
+  const maxW = 700;
+  const w = isMobile
+    ? window.innerWidth - 24
+    : maxW;
+
+  const h = isMobile
+    ? window.innerHeight * 0.45
+    : 500;
+
+  return {
+    w: Math.max(320, Math.min(w, maxW)),
+    h: Math.max(300, h)
+  };
+}
+
+
 /* ================= DRAW ================= */
 function draw() {
   // Background of the canvas (matches the card style)
@@ -121,7 +142,9 @@ function draw() {
 
   // Draw pyramid in pyramid-space (affected by camScale)
   push();
-  translate(width / 2, 90);
+  const isMobile = window.innerWidth < 768;
+  translate(width / 2, isMobile ? 50 : 90);
+
   scale(camScale);
 
   viewMode === "all" ? drawAllPyramids() : drawActivePyramid();
@@ -633,17 +656,21 @@ function updateAndDrawConfetti() {
    Keeps it usable on mobile sizes.
 */
 function windowResized() {
-  // Make canvas responsive but not tiny
-  const maxW = 700;
-  const pad = 40;
-  const w = min(maxW, windowWidth - pad);
-  const h = 500;
+  const { w, h } = getCanvasSize();
+  resizeCanvas(w, h);
 
-  resizeCanvas(max(320, w), h);
+  // Snap camera to avoid jitter
+  if (viewMode === "all") {
+    targetCamScale = computeAutoScale();
+    camScale = targetCamScale;
+  } else {
+    targetCamScale = 1;
+    camScale = 1;
+  }
 
-  // Reseed sparkles to match new size
   seedSparkles(false);
 }
+
 
 function setViewMode(mode) {
   viewMode = mode;
