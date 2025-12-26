@@ -4,6 +4,14 @@ const SIZE = 40;
 const H = SIZE * Math.sqrt(3) / 2;
 const MAX_TRIANGLES = ROWS * ROWS;
 
+
+/* ================= GLOW CONTROL ================= */
+// 1.0 = current look
+// 1.5 = strong
+// 2.0 = very intense
+const GLOW_INTENSITY = 1.6;
+
+
 /* ================= THEMES ================= */
 const THEMES = {
   green: {
@@ -201,14 +209,16 @@ function drawPyramid(tris, invert, index) {
       let up = i === 0 || i === n - 1 || i % 2 === 0;
       let x = startX + i * (SIZE / 2);
 
-      // Slight triangle glow (kept), but the MAIN halo is now done by drawPyramidHalo()
-      let glow = theme.glow;
-      drawingContext.shadowBlur = index === pyramids.length ? 8 : 5;
-      drawingContext.shadowColor = `rgba(${glow[0]},${glow[1]},${glow[2]},0.25)`;
+      let g = theme.glow;
 
-      stroke(glow[0], glow[1], glow[2], 150);
+      // 🔥 controlled triangle glow
+      drawingContext.shadowBlur =
+        (index === pyramids.length ? 8 : 5) * GLOW_INTENSITY;
+      drawingContext.shadowColor =
+        `rgba(${g[0]},${g[1]},${g[2]},${0.25 * GLOW_INTENSITY})`;
+
+      stroke(g[0], g[1], g[2], 150);
       strokeWeight(index === pyramids.length ? 1.6 : 1.1);
-
       fill(up ? theme.fill : theme.inverted);
 
       up
@@ -219,6 +229,7 @@ function drawPyramid(tris, invert, index) {
     }
   }
 }
+
 
 /* ================= PYRAMID HALO (NEW) =================
    This draws a BIG glow around the outer triangle only,
