@@ -527,7 +527,8 @@ function drawCanvasBackground() {
 
   // Smooth gradient
   if (!isDark) {
-    background(255);
+    background(236, 238, 240); // darker than before (important)
+
     // subtle vignette
     noStroke();
     for (let i = 0; i < 12; i++) {

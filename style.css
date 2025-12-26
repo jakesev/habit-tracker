@@ -15,15 +15,14 @@ body {
   user-select: none;
   -webkit-user-select: none;
 
-  /* Light mode background (matches your reference vibe) */
+  color: #e5e7eb;
   background:
-    radial-gradient(circle at 20% 0%, rgba(34,197,94,0.12), transparent 45%),
-    radial-gradient(circle at 100% 30%, rgba(59,130,246,0.10), transparent 40%),
-    radial-gradient(circle at 0% 100%, rgba(16,185,129,0.10), transparent 45%),
-    #eef2f7;
-
-  color: #111827;
+    radial-gradient(circle at 20% 0%, rgba(99,102,241,0.18), transparent 48%),
+    radial-gradient(circle at 100% 35%, rgba(34,197,94,0.12), transparent 45%),
+    radial-gradient(circle at 0% 100%, rgba(168,85,247,0.12), transparent 45%),
+    #0b1020;
 }
+
 
 /* ===== DARK MODE (toggle via body.dark) ===== */
 body.dark {
