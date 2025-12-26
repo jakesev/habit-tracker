@@ -57,10 +57,8 @@
   <!-- CONTROLS (bottom like your reference) -->
   <div class="controls">
     <button id="addBtn" class="primary">Add Progress</button>
-    <button id="focusBtn">Focus</button>
-    <button id="showAllBtn">Show All</button>
+    <button id="viewToggleBtn">Show All</button>
     <button id="themeBtn">Theme</button>
-    <button id="modeBtn">Dark</button>
     <button id="resetBtn" class="danger">Reset</button>
   </div>
 
@@ -69,5 +67,15 @@
 <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/addons/p5.sound.min.js"></script>
 <script src="sketch.js"></script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js")
+      .then(() => console.log("Service Worker registered"))
+      .catch(err => console.error("SW failed", err));
+  });
+}
+</script>
 </body>
 </html>

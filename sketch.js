@@ -86,6 +86,8 @@ function setup() {
   const { w, h } = getCanvasSize();
   createCanvas(w, h).parent("canvas-container");
 
+  document.body.classList.add("dark");
+  localStorage.setItem("triangle_darkmode", "1");
 
   // Audio setup
   [rewardSound, osc1, osc2, osc3].forEach(o => {
@@ -94,14 +96,16 @@ function setup() {
   });
 
   loadData();
+
+  const toggleBtn = document.getElementById("viewToggleBtn");
+  toggleBtn.innerText = viewMode === "focus" ? "Show All" : "Focus";
+
   updateStatus();
   seedSparkles();
 
   // Buttons
   document.getElementById("addBtn").onclick = addProgress;
-  document.getElementById("focusBtn").onclick = () => setViewMode("focus");
-  document.getElementById("showAllBtn").onclick = () => setViewMode("all");
-
+  document.getElementById("viewToggleBtn").onclick = toggleViewMode;
   document.getElementById("resetBtn").onclick = resetAll;
   document.getElementById("themeBtn").onclick = cycleTheme;
 
@@ -387,6 +391,8 @@ function addProgress() {
 
   saveData();
   updateStatus();
+
+  
 }
 
 /* ================= LEVEL SYSTEM ================= */
@@ -524,10 +530,10 @@ function syncModeButton() {
 */
 function drawCanvasBackground() {
   const isDark = document.body.classList.contains("dark");
-
+  
   // Smooth gradient
   if (!isDark) {
-    background(236, 238, 240); // darker than before (important)
+      background(224, 228, 232); // darker than before (important)
 
     // subtle vignette
     noStroke();
@@ -736,4 +742,15 @@ function setViewMode(mode) {
   // Cancel pulses so they don’t fight the transition
   levelPulse = 0;
   glowPulse = 0;
+}
+
+
+function toggleViewMode() {
+  if (viewMode === "focus") {
+    setViewMode("all");
+    document.getElementById("viewToggleBtn").innerText = "Focus";
+  } else {
+    setViewMode("focus");
+    document.getElementById("viewToggleBtn").innerText = "Show All";
+  }
 }
