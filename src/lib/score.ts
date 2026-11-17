@@ -256,7 +256,7 @@ export const STANDARDS: Standard[] = [
   { level: "Starting out", threshold: 70, passes: 2, from: 0 },
   { level: "Building", threshold: 80, passes: 1, from: 40 },
   { level: "Solid", threshold: 90, passes: 1, from: 65 },
-  { level: "Elite", threshold: 95, passes: 1, from: 85 },
+  { level: "Elite", threshold: 100, passes: 1, from: 85 },
 ];
 
 /**

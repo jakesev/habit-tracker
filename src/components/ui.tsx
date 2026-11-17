@@ -325,6 +325,7 @@ const paths: Record<string, ReactNode> = {
   note: <path d="M5 5h14v10l-4 4H5zM15 19v-4h4M8.5 9.5h7M8.5 12.5h4" />,
   skip: <path d="M6 6l8 6-8 6zM17 6v12" />,
   left: <path d="m14.5 6-6 6 6 6" />,
+  chevron: <path d="m6 9.5 6 6 6-6" />,
   right: <path d="m9.5 6 6 6-6 6" />,
   clock: (
     <>

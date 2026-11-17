@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { GhostButton, Icon, Pressable, Segmented, Toggle } from "../components/ui";
+import { GhostButton, Icon, Pressable, Segmented, spring, Toggle } from "../components/ui";
 import { haptic } from "../lib/feedback";
 import { DOW_SHORT, fmtDuration, fmtRange } from "../lib/time";
 import { useStore } from "../store/store";
 import { useUI } from "../store/ui";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Logo } from "../components/Logo";
 import { IDENTITIES, useIdentity } from "../lib/identity";
 import { currentStandard, STANDARDS } from "../lib/score";
@@ -61,6 +61,7 @@ export function You() {
   const days = useStore((s) => s.days);
   const firstDay = useStore((s) => s.firstDay) ?? todayKey();
   const standard = currentStandard(days, settings, todayKey(), firstDay);
+  const [showLadder, setShowLadder] = useState(false);
   const [launcherId, setLauncherId] = useState<string | null>(null);
   useEffect(() => {
     getLauncherIdentity().then(setLauncherId);
@@ -134,17 +135,35 @@ export function You() {
       <section className="mt-7">
         <div className="eyebrow mb-2 px-1">Your standard</div>
         <div className="card overflow-hidden">
-          <div className="px-4 pt-4 pb-3">
-            <div className="flex items-baseline justify-between gap-3">
-              <div className="text-[17px] font-semibold tracking-[-0.01em]">{standard.level}</div>
-              <div className="num text-[13px] text-mute">Discipline {Math.round(standard.disciplineIndex)}</div>
-            </div>
-            <p className="mt-1 text-[13px] leading-snug text-faint">
-              {standard.next
-                ? `${standard.next.gap} more to ${standard.next.level}. Then the bar rises to ${standard.next.threshold}%.`
-                : "The top standard. Hold it."}
-            </p>
-          </div>
+          <Pressable
+            scale={0.99}
+            aria-expanded={showLadder}
+            onClick={() => setShowLadder((v) => !v)}
+            className="flex w-full items-center gap-3 px-4 py-4 text-left"
+          >
+            <span className="num grid h-11 min-w-11 shrink-0 place-items-center rounded-xl bg-ember/15 px-2 text-[15px] font-semibold text-ember-hi">
+              {standard.threshold}%
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[17px] font-semibold tracking-[-0.01em]">{standard.level}</span>
+              <span className="block text-[12px] leading-snug text-faint">
+                {standard.next ? `${standard.next.gap} more discipline to ${standard.next.level} · ${standard.next.threshold}%` : "The top standard. Every block. Hold it."}
+              </span>
+            </span>
+            <motion.span animate={{ rotate: showLadder ? 180 : 0 }} transition={spring} className="shrink-0 text-faint">
+              <Icon name="chevron" size={20} />
+            </motion.span>
+          </Pressable>
+          <AnimatePresence initial={false}>
+            {showLadder && (
+              <motion.div
+                key="ladder"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ height: { type: "spring", stiffness: 380, damping: 38 }, opacity: { duration: 0.18 } }}
+                className="overflow-hidden"
+              >
           <ol className="border-t border-line">
             {STANDARDS.map((st, i) => {
               const cur = i === standard.index;
@@ -178,6 +197,9 @@ export function You() {
             A day counts when you finish this share of its plan. The bar rises as you hold it for weeks and eases back if you slip. Each day keeps the
             standard it started with.
           </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </section>
 

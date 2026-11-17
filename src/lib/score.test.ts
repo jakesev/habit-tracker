@@ -163,7 +163,7 @@ describe("standards rise with your level", () => {
     expect(s.next?.level).toBe("Building");
   });
 
-  it("a perfect, consistent record reaches Elite at 95%", () => {
+  it("a perfect, consistent record reaches Elite at 100%", () => {
     const first = "2026-11-01";
     const days: Record<string, Day> = {};
     for (let i = 0; i < 10; i++) {
@@ -172,7 +172,7 @@ describe("standards rise with your level", () => {
     }
     const s = currentStandard(days, settings, addDays(first, 9), first);
     expect(s.level).toBe("Elite");
-    expect(s.threshold).toBe(95);
+    expect(s.threshold).toBe(100);
     expect(s.next).toBeUndefined();
   });
 });
