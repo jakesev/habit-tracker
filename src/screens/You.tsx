@@ -6,6 +6,7 @@ import { useStore } from "../store/store";
 import { useUI } from "../store/ui";
 import { AnimatePresence, motion } from "framer-motion";
 import { Logo } from "../components/Logo";
+import { CalendarSettings } from "./CalendarSettings";
 import { IDENTITIES, useIdentity } from "../lib/identity";
 import { currentStandard, STANDARDS } from "../lib/score";
 import { todayKey } from "../lib/time";
@@ -236,6 +237,8 @@ export function You() {
           </div>
         </div>
       </Group>
+
+      <CalendarSettings />
 
       <Group title="Feel">
         <Row label="Haptics" hint={isNative ? undefined : "Android only. iPhone browsers don't allow vibration."}>

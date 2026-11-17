@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { Icon, Pressable, spring } from "./components/ui";
 import { notify } from "./lib/feedback";
 import { useApplyIdentity } from "./lib/identity";
+import { handleAuthRedirect } from "./lib/cloud";
+import { useCloud } from "./lib/useCloud";
 import { isNative, setupNativeChrome, syncReminders } from "./lib/native";
 import { fmtClock, nowMin, todayKey } from "./lib/time";
 import { selectBlock, useStore } from "./store/store";
@@ -48,6 +50,7 @@ export default function App() {
   useFocusWatcher();
   useReminders();
   useApplyIdentity();
+  useCloud();
 
   return (
     <MotionConfig reducedMotion="user">
@@ -88,6 +91,10 @@ export default function App() {
 
 /** routine://im-home → open the "I'm home" re-plan on Today. */
 function handleLink(url: string) {
+  if (url.startsWith("routine://auth-callback")) {
+    handleAuthRedirect(url).catch(() => useUI.getState().showToast("Sign-in didn't finish", "Try connecting again."));
+    return;
+  }
   if (url.includes("im-home")) {
     const ui = useUI.getState();
     ui.go("today");

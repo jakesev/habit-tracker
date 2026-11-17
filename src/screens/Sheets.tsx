@@ -193,7 +193,7 @@ function BlockBody({ date, b, onClose }: { date: string; b: DayBlock; onClose: (
       {/* secondary */}
       {editable && (
         <div className="mt-6 flex gap-2">
-          {date >= todayKey() && (
+          {date >= todayKey() && b.templateId !== "gcal" && (
             <GhostButton
               className="flex-1"
               onClick={() => {

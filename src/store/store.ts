@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { HOME_BLOCKS, seedTemplate } from "../lib/seed";
 import type { PlanResult } from "../lib/plan";
 import { currentStandard } from "../lib/score";
+import { mergeBusy } from "../lib/gcal-map";
 import { addDays, diffDays, fromKey, nowMin, snapDuration, todayKey } from "../lib/time";
 import {
   EXCUSED_REASONS,
@@ -43,6 +44,20 @@ export interface BlockInput {
 }
 export type Scope = "day" | "every";
 
+/** Google Calendar connection (see lib/cloud.ts, lib/gcal.ts). */
+export interface CloudState {
+  connected: boolean;
+  email?: string;
+  calendarId?: string;
+  /** Put my blocks in the app's own calendar. */
+  write: boolean;
+  /** Read my other calendars as busy time. */
+  read: boolean;
+  lastSync?: number;
+  error?: string;
+}
+const DEFAULT_CLOUD: CloudState = { connected: false, write: true, read: true };
+
 export type Answers = Partial<Pick<DayBlock, "resistance" | "energy" | "startDifficulty" | "note">>;
 
 interface State {
@@ -53,6 +68,10 @@ interface State {
   focus: FocusSession | null;
   /** Blocks added for days that haven't started yet; merged in when the day begins. */
   oneOffs: Record<DateKey, DayBlock[]>;
+  cloud: CloudState;
+  setCloud: (p: Partial<CloudState>) => void;
+  /** Replace a day's Google busy blocks with a fresh read. */
+  applyBusy: (date: DateKey, busy: DayBlock[]) => void;
 
   addBlock: (input: BlockInput) => void;
   updateBlock: (date: DateKey, id: string, input: BlockInput, scope: Scope) => void;
@@ -194,6 +213,18 @@ export const useStore = create<State>()(
         settings: DEFAULT_SETTINGS,
         focus: null,
         oneOffs: {},
+        cloud: DEFAULT_CLOUD,
+        setCloud: (p) => set((s) => ({ cloud: { ...s.cloud, ...p } })),
+        applyBusy: (date, incoming) =>
+          set((s) => {
+            const busy = [...incoming].sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
+            const d = s.days[date];
+            if (!d) return s;
+            const old = d.blocks.filter((b) => b.templateId === "gcal").sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
+            const same = old.length === busy.length && old.every((b, i) => b.id === busy[i]?.id && b.start === busy[i].start && b.duration === busy[i].duration && b.title === busy[i].title);
+            if (same) return s;
+            return { days: { ...s.days, [date]: { ...d, blocks: mergeBusy(d.blocks, busy) } } };
+          }),
 
         addBlock: (input) =>
           set((s) => {
@@ -466,6 +497,7 @@ export const useStore = create<State>()(
             settings: DEFAULT_SETTINGS,
             focus: null,
             oneOffs: {},
+            cloud: get().cloud,
           }),
       };
     },
@@ -516,6 +548,7 @@ export const useStore = create<State>()(
         settings: s.settings,
         focus: s.focus,
         oneOffs: s.oneOffs,
+        cloud: s.cloud,
       }),
     },
   ),

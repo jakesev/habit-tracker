@@ -33,6 +33,11 @@ jobs:
           cache: gradle
 
       - name: Test and build the web app
+        env:
+          # Set these under Settings → Secrets and variables → Actions → Variables
+          # to switch on Google Calendar sync (see SETUP-GOOGLE.md). Both are public values.
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
         run: |
           npm ci
           npm test

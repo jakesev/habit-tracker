@@ -51,7 +51,9 @@ Deploy `dist/` to any static host (Netlify, Vercel, GitHub Pages). On your phone
 
 Phase 1 is **local-first**: everything is stored on the device, so it's instant and works offline. Use **You → Back up** now and then.
 
-`supabase/migrations/0001_phase1.sql` holds the matching Postgres schema with row-level security. To turn on Google sign-in and sync you need a Supabase project and a Google OAuth client. Both are set up in their dashboards.
+**Google Calendar sync** (You → Google Calendar) is built in but stays off until it's set up. Follow **[SETUP-GOOGLE.md](SETUP-GOOGLE.md)** (about 10 minutes). Once on, your blocks go into a "Shugyo" calendar in your Google account, and your other events show in Today as busy time. Sign-in uses Supabase Auth with Google, and the Google refresh token is kept server-side by the `google-token` Edge Function.
+
+`supabase/migrations/` holds the Postgres schema with row-level security.
 
 ## Platform notes
 
@@ -64,12 +66,13 @@ Phase 1 is **local-first**: everything is stored on the device, so it's instant 
 ```
 src/
   lib/       time (15-min grid), seed routine, scoring + streaks, "I'm home" planner (pure, tested),
+             Google sign-in + calendar sync (cloud.ts, gcal.ts, gcal-map.ts),
              identities, native bridge (notifications, haptics, icon switch), voice, feedback
   store/     persisted app state (zustand) and UI state
   screens/   Home, Today, Streak, You, Focus, sheets
   components/ Check (tick + burst), DayBox, Ring, Sheet, Scale, Segmented, icons
 android/     Capacitor Android project: launcher aliases per identity, RoutineNative plugin, icons
-supabase/    Phase 1 schema
+supabase/    schema migrations and the google-token Edge Function
 ```
 
 The sideload signing key in `android/keystore/` is deliberately committed. It lets new builds install over old ones. It protects no account or data. Before publishing to the Play Store, switch to a private key stored as a GitHub secret.
