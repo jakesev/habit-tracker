@@ -6,6 +6,7 @@ import { currentStandard } from "../lib/score";
 import { addDays, diffDays, fromKey, nowMin, snapDuration, todayKey } from "../lib/time";
 import {
   EXCUSED_REASONS,
+  type Category,
   type Day,
   type DayBlock,
   type DateKey,
@@ -29,6 +30,19 @@ export const DEFAULT_SETTINGS: Settings = {
   bedTime: 21 * 60,
 };
 
+/** What the add / edit form produces. Times are on the 15-minute grid. */
+export interface BlockInput {
+  title: string;
+  date: DateKey;
+  start: number;
+  duration: number;
+  category: Category;
+  movable: boolean;
+  /** Weekdays (0 = Sun) it repeats on, or null for just this day. */
+  repeat: number[] | null;
+}
+export type Scope = "day" | "every";
+
 export type Answers = Partial<Pick<DayBlock, "resistance" | "energy" | "startDifficulty" | "note">>;
 
 interface State {
@@ -37,6 +51,12 @@ interface State {
   days: Record<DateKey, Day>;
   settings: Settings;
   focus: FocusSession | null;
+  /** Blocks added for days that haven't started yet; merged in when the day begins. */
+  oneOffs: Record<DateKey, DayBlock[]>;
+
+  addBlock: (input: BlockInput) => void;
+  updateBlock: (date: DateKey, id: string, input: BlockInput, scope: Scope) => void;
+  deleteBlock: (date: DateKey, id: string, scope: Scope) => void;
 
   ensureDays: (now?: Date) => void;
   tick: (date: DateKey, id: string) => void;
@@ -65,7 +85,7 @@ interface State {
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
-function blocksFor(date: DateKey, template: TemplateBlock[], settings: Settings): DayBlock[] {
+export function blocksFor(date: DateKey, template: TemplateBlock[], settings: Settings): DayBlock[] {
   const dow = fromKey(date).getDay();
   return template
     .filter((t) => t.days.includes(dow))
@@ -87,6 +107,50 @@ function blocksFor(date: DateKey, template: TemplateBlock[], settings: Settings)
       reminderLead: settings.defaultReminderLead,
     }));
 }
+
+function instance(t: TemplateBlock, settings: Settings): DayBlock {
+  return {
+    id: `${t.id}-${uid()}`,
+    templateId: t.id,
+    title: t.title,
+    subtitle: t.subtitle,
+    category: t.category,
+    type: t.type,
+    priority: t.priority,
+    start: t.start,
+    duration: snapDuration(t.duration),
+    minDuration: snapDuration(t.minDuration),
+    checklist: t.checklist,
+    homeAnchor: t.homeAnchor,
+    status: "planned",
+    reminderLead: settings.defaultReminderLead,
+  };
+}
+
+function blockFields(i: BlockInput) {
+  const duration = snapDuration(i.duration);
+  const event = i.category === "event";
+  return {
+    title: i.title.trim() || "Untitled",
+    start: Math.round(i.start / 15) * 15,
+    duration,
+    category: i.category,
+    type: (event || !i.movable ? "fixed" : "flexible") as TemplateBlock["type"],
+    minDuration: event || !i.movable ? duration : 15,
+  };
+}
+
+function toTemplate(i: BlockInput, id: string): TemplateBlock {
+  const f = blockFields(i);
+  return { id, ...f, days: i.repeat ?? [], priority: i.category === "skill" || i.category === "reading" ? 4 : 3 };
+}
+
+function oneOff(i: BlockInput, settings: Settings): DayBlock {
+  return { ...instance({ ...toTemplate(i, "once"), days: [] }, settings), id: `once-${uid()}`, templateId: "once" };
+}
+
+const sortDay = (d: Day): Day => ({ ...d, blocks: [...d.blocks].sort((a, b) => a.start - b.start) });
+const withBlock = (d: Day, b: DayBlock): Day => sortDay({ ...d, blocks: [...d.blocks, b] });
 
 /** Corrections are allowed until the end of the next day. */
 export const isEditable = (date: DateKey, today = todayKey()) => diffDays(date, today) <= 1;
@@ -129,6 +193,76 @@ export const useStore = create<State>()(
         days: {},
         settings: DEFAULT_SETTINGS,
         focus: null,
+        oneOffs: {},
+
+        addBlock: (input) =>
+          set((s) => {
+            const days = { ...s.days };
+            const oneOffs = { ...s.oneOffs };
+            let template = s.template;
+            if (input.repeat?.length) {
+              const t = toTemplate(input, `tpl-${uid()}`);
+              template = [...template, t];
+              // Days already laid out (today, tomorrow) get it too, from the chosen date on.
+              for (const k of Object.keys(days)) {
+                if (k >= input.date && k >= todayKey() && t.days.includes(fromKey(k).getDay()))
+                  days[k] = withBlock(days[k], instance(t, s.settings));
+              }
+            } else {
+              const b = oneOff(input, s.settings);
+              if (days[input.date]) days[input.date] = withBlock(days[input.date], b);
+              else oneOffs[input.date] = [...(oneOffs[input.date] ?? []), b];
+            }
+            return { days, oneOffs, template };
+          }),
+
+        updateBlock: (date, id, input, scope) =>
+          set((s) => {
+            const days = { ...s.days };
+            const oneOffs = { ...s.oneOffs };
+            const src = days[date]?.blocks.find((b) => b.id === id) ?? oneOffs[date]?.find((b) => b.id === id);
+            if (!src) return s;
+            let template = s.template;
+            const fields = blockFields(input);
+            if (scope === "every" && template.some((t) => t.id === src.templateId)) {
+              template = template.map((t) => (t.id === src.templateId ? { ...toTemplate(input, t.id), checklist: t.checklist, subtitle: t.subtitle, priority: t.priority, homeAnchor: t.homeAnchor, days: input.repeat?.length ? input.repeat : t.days } : t));
+              const t = template.find((x) => x.id === src.templateId)!;
+              for (const k of Object.keys(days)) {
+                if (k < todayKey()) continue;
+                const d = days[k];
+                const has = d.blocks.some((b) => b.templateId === t.id);
+                const should = t.days.includes(fromKey(k).getDay());
+                if (has && !should) days[k] = { ...d, blocks: d.blocks.filter((b) => b.templateId !== t.id || b.status !== "planned") };
+                else if (has) days[k] = sortDay({ ...d, blocks: d.blocks.map((b) => (b.templateId === t.id && b.status === "planned" ? { ...b, ...fields } : b)) });
+                else if (should) days[k] = withBlock(d, instance(t, s.settings));
+              }
+              return { days, template };
+            }
+            // Just this day (or a one-off). Moving it to another date moves the block.
+            const moved = { ...src, ...fields };
+            if (days[date]) days[date] = { ...days[date], blocks: days[date].blocks.filter((b) => b.id !== id) };
+            if (oneOffs[date]) oneOffs[date] = oneOffs[date].filter((b) => b.id !== id);
+            if (days[input.date]) days[input.date] = withBlock(days[input.date], moved);
+            else oneOffs[input.date] = [...(oneOffs[input.date] ?? []), moved];
+            return { days, oneOffs };
+          }),
+
+        deleteBlock: (date, id, scope) =>
+          set((s) => {
+            const days = { ...s.days };
+            const oneOffs = { ...s.oneOffs };
+            const src = days[date]?.blocks.find((b) => b.id === id) ?? oneOffs[date]?.find((b) => b.id === id);
+            if (!src) return s;
+            let template = s.template;
+            if (scope === "every" && template.some((t) => t.id === src.templateId)) {
+              template = template.filter((t) => t.id !== src.templateId);
+              for (const k of Object.keys(days))
+                if (k >= todayKey()) days[k] = { ...days[k], blocks: days[k].blocks.filter((b) => b.templateId !== src.templateId || (b.status !== "planned" && b.id !== id)) };
+            }
+            if (days[date]) days[date] = { ...days[date], blocks: days[date].blocks.filter((b) => b.id !== id) };
+            if (oneOffs[date]) oneOffs[date] = oneOffs[date].filter((b) => b.id !== id);
+            return { days, oneOffs, template };
+          }),
 
         ensureDays: (now = new Date()) => {
           const s = get();
@@ -142,7 +276,12 @@ export const useStore = create<State>()(
           const standard = currentStandard(days, s.settings, today, first).threshold;
           for (let k = first; diffDays(k, tomorrow) >= 0; k = addDays(k, 1)) {
             if (!days[k]) {
-              days[k] = { date: k, blocks: blocksFor(k, s.template, s.settings), standard };
+              const extra = s.oneOffs[k] ?? [];
+              days[k] = { date: k, blocks: [...blocksFor(k, s.template, s.settings), ...extra].sort((a, b) => a.start - b.start), standard };
+              if (extra.length) {
+                const { [k]: _used, ...rest } = get().oneOffs;
+                set({ oneOffs: rest });
+              }
               changed = true;
             } else if (k >= today && days[k].standard == null) {
               days[k] = { ...days[k], standard };
@@ -156,7 +295,7 @@ export const useStore = create<State>()(
               const running = s.focus?.blockId === b.id;
               // Shower and dinner wait for "I'm home"; if it never comes they close at bed time.
               const end = b.homeAnchor && d.homeAt == null && k === today ? s.settings.bedTime : b.start + b.duration;
-              if (b.status === "planned" && !running && end <= cutoff) {
+              if (b.category !== "event" && b.status === "planned" && !running && end <= cutoff) {
                 dirty = true;
                 return { ...b, status: "missed" as const };
               }
@@ -326,6 +465,7 @@ export const useStore = create<State>()(
             days: {},
             settings: DEFAULT_SETTINGS,
             focus: null,
+            oneOffs: {},
           }),
       };
     },
@@ -375,6 +515,7 @@ export const useStore = create<State>()(
         days: s.days,
         settings: s.settings,
         focus: s.focus,
+        oneOffs: s.oneOffs,
       }),
     },
   ),

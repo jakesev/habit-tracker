@@ -10,6 +10,8 @@ import { TABS, useUI, type Tab } from "./store/ui";
 import { FocusScreen, useFocusWatcher } from "./screens/Focus";
 import { Home } from "./screens/Home";
 import { ArriveSheet } from "./screens/Arrive";
+import { EditorSheet } from "./screens/Editor";
+import { PlanMenu } from "./screens/PlanMenu";
 import { BlockSheet, CheckInSheet, DaySheet, SkipSheet } from "./screens/Sheets";
 import { Streak } from "./screens/Streak";
 import { Today } from "./screens/Today";
@@ -76,6 +78,8 @@ export default function App() {
       <SkipSheet />
       <CheckInSheet />
       <ArriveSheet />
+      <PlanMenu />
+      <EditorSheet />
       <FocusScreen />
       <Toast />
     </MotionConfig>
@@ -97,6 +101,8 @@ function handleBack(): boolean {
   if (ui.focusSetup) return ui.open("focusSetup", null), true;
   if (ui.checkin) return ui.open("checkin", null), true;
   if (ui.skip) return ui.open("skip", null), true;
+  if (ui.editor) return ui.openEditor(null), true;
+  if (ui.menu) return ui.openMenu(false), true;
   if (ui.home) return ui.openHome(false), true;
   if (ui.block) return ui.open("block", null), true;
   if (ui.day) return ui.openDay(null), true;

@@ -37,6 +37,7 @@ export function Today() {
   const settings = useStore((s) => s.settings);
   const open = useUI((s) => s.open);
   const openHome = useUI((s) => s.openHome);
+  const openMenu = useUI((s) => s.openMenu);
 
   const all = day?.blocks ?? [];
   const blocks = all.filter((b) => !b.dropped);
@@ -44,13 +45,14 @@ export function Today() {
   const t = nowMin(now);
   const pct = completion(day) ?? 0;
   const doneCount = blocks.filter((b) => b.status === "done" || b.status === "partial").length;
-  const countable = blocks.filter((b) => !b.excused).length;
-  const left = blocks.filter((b) => b.status === "planned").reduce((a, b) => a + b.duration, 0);
+  const isEvent = (b: DayBlock) => b.category === "event";
+  const countable = blocks.filter((b) => !b.excused && !isEvent(b)).length;
+  const left = blocks.filter((b) => b.status === "planned" && !isEvent(b)).reduce((a, b) => a + b.duration, 0);
 
-  const current = blocks.find((b) => b.status === "planned" && b.start <= t && t < b.start + b.duration);
-  const next = blocks.find((b) => b.status === "planned" && b.start > t);
+  const current = blocks.find((b) => !isEvent(b) && b.status === "planned" && b.start <= t && t < b.start + b.duration);
+  const next = blocks.find((b) => !isEvent(b) && b.status === "planned" && b.start > t);
   const hero = current ?? next;
-  const allDone = blocks.length > 0 && blocks.every((b) => b.status !== "planned");
+  const allDone = blocks.some((b) => !isEvent(b)) && blocks.every((b) => isEvent(b) || b.status !== "planned");
 
   // Where the "now" divider sits, when we're between blocks.
   const nowIndex = current ? -1 : blocks.findIndex((b) => b.start > t);
@@ -78,40 +80,29 @@ export function Today() {
           {doneCount} of {countable} done
         </span>
         <span className="text-faint">·</span>
-        <span className="num">{left ? `${fmtDuration(left)} left on the plan` : "Nothing left on the plan"}</span>
+        <span className="num min-w-0 truncate">{left ? `${fmtDuration(left)} left` : "Nothing left"}</span>
+        <Pressable
+          scale={0.92}
+          aria-label="Add or re-plan"
+          onClick={() => openMenu(true)}
+          className="ml-auto flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line bg-white/[0.04] pr-3.5 pl-2.5 text-[13px] font-medium text-ink"
+        >
+          <Icon name="plus" size={16} stroke={2.2} /> Add
+        </Pressable>
       </div>
 
-      {/* I'm home: one tap re-plans the evening */}
-      {blocks.some((b) => b.homeAnchor) && t < settings.bedTime && (day?.homeAt == null ? t >= settings.homeTime - 120 : true) && (
-        <motion.section layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 380, damping: 32 }} className="mt-5">
-          {day?.homeAt == null ? (
-            <Pressable
-              scale={0.98}
-              onClick={() => openHome(true)}
-              className="flex w-full items-center gap-4 rounded-[22px] border border-line bg-white/[0.035] p-4 text-left"
-            >
-              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-ember/15 text-ember">
-                <Icon name="home" size={24} stroke={2} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[17px] font-semibold tracking-[-0.01em]">I'm home</span>
-                <span className="block text-[13px] text-faint">Shower, dinner, then the evening re-plans to fit.</span>
-              </span>
-              <Icon name="right" size={18} className="shrink-0 text-faint" />
-            </Pressable>
-          ) : (
-            <div className="flex items-center gap-3 rounded-2xl border border-line bg-white/[0.025] py-2 pr-2 pl-4 text-[13px]">
-              <Icon name="home" size={16} className="shrink-0 text-ember" />
-              <span className="num min-w-0 flex-1 text-mute">Home at {fmtTime(day.homeAt)} · plan adjusted</span>
-              <Pressable onClick={() => openHome(true)} className="h-9 rounded-xl px-3 font-medium text-ink">
-                Change
-              </Pressable>
-              <Pressable onClick={() => undoHome(today)} className="h-9 rounded-xl px-3 text-faint">
-                Undo
-              </Pressable>
-            </div>
-          )}
-        </motion.section>
+      {/* Only after you chose to re-plan: a quiet note with undo. */}
+      {day?.homeAt != null && t < settings.bedTime && (
+        <div className="mt-4 flex items-center gap-3 rounded-2xl border border-line bg-white/[0.025] py-2 pr-2 pl-4 text-[13px]">
+          <Icon name="home" size={16} className="shrink-0 text-ember" />
+          <span className="num min-w-0 flex-1 text-mute">Re-planned from {fmtTime(day.homeAt)}</span>
+          <Pressable onClick={() => openHome(true)} className="h-9 rounded-xl px-3 font-medium text-ink">
+            Change
+          </Pressable>
+          <Pressable onClick={() => undoHome(today)} className="h-9 rounded-xl px-3 text-faint">
+            Undo
+          </Pressable>
+        </div>
       )}
 
       {/* Hero: the one thing to do now */}
@@ -239,7 +230,13 @@ export function Today() {
                         {b.note && <Icon name="note" size={13} className="ml-0.5 shrink-0 text-faint" />}
                       </div>
                     </Pressable>
-                    <Check status={b.status} onToggle={() => (b.status === "planned" || b.status === "missed" ? completeBlock(today, b.id) : tick(today, b.id))} label={`Mark ${b.title} done`} />
+                    {isEvent(b) ? (
+                      <span className="mr-2.5 grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[10px] bg-event/15 text-event" aria-label="Event">
+                        <Icon name="today" size={16} />
+                      </span>
+                    ) : (
+                      <Check status={b.status} onToggle={() => (b.status === "planned" || b.status === "missed" ? completeBlock(today, b.id) : tick(today, b.id))} label={`Mark ${b.title} done`} />
+                    )}
                   </div>
                 </motion.li>
               </Fragment>

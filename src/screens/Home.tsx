@@ -51,7 +51,7 @@ export function Home() {
   const weekHours = weekFocusedMinutes(days, today) / 60;
 
   const t = nowMin(now);
-  const next = days[today]?.blocks.find((b) => b.status === "planned" && b.start + b.duration > t);
+  const next = days[today]?.blocks.find((b) => b.category !== "event" && !b.dropped && b.status === "planned" && b.start + b.duration > t);
   const nextSteps = [3, 7, 14, 30, 60].find((s) => s > streak);
   const standard = currentStandard(days, settings, today, firstDay);
 

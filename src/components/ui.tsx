@@ -367,6 +367,7 @@ export const CATEGORY_COLOR: Record<string, string> = {
   family: "var(--color-family)",
   chore: "var(--color-chore)",
   anchor: "var(--color-anchor)",
+  event: "var(--color-event)",
 };
 
 export const CATEGORY_LABEL: Record<string, string> = {
@@ -375,4 +376,5 @@ export const CATEGORY_LABEL: Record<string, string> = {
   family: "Family",
   chore: "Chore",
   anchor: "Anchor",
+  event: "Event",
 };

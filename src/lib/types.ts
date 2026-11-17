@@ -4,7 +4,8 @@ export type Min = number;
 /** ISO date, local time: "2026-11-17". */
 export type DateKey = string;
 
-export type Category = "skill" | "reading" | "family" | "chore" | "anchor";
+/** "event" = something on your calendar (dentist, client). Busy time, not a habit: no tick, no score. */
+export type Category = "skill" | "reading" | "family" | "chore" | "anchor" | "event";
 
 /** How the re-planner (Phase 2) is allowed to treat a block. */
 export type BlockType = "fixed" | "flexible" | "droppable" | "protected";

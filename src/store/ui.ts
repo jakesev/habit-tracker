@@ -15,12 +15,16 @@ interface UI {
   focusSetup: Ref | null; // focus timer, before start
   day: DateKey | null; // day detail from calendar
   home: boolean; // "I'm home" re-plan sheet
+  menu: boolean; // the + menu on Today
+  editor: { mode: "add"; date: DateKey; event?: boolean } | { mode: "edit"; date: DateKey; id: string } | null;
   toast: { id: number; title: string; line?: string; tone: "hard" | "plain" } | null;
 
   go: (t: Tab) => void;
   open: (k: "block" | "skip" | "checkin" | "focusSetup", r: Ref | null) => void;
   openDay: (d: DateKey | null) => void;
   openHome: (v: boolean) => void;
+  openMenu: (v: boolean) => void;
+  openEditor: (v: UI["editor"]) => void;
   showToast: (title: string, line?: string, tone?: "hard" | "plain") => void;
 }
 
@@ -33,6 +37,8 @@ export const useUI = create<UI>((set, get) => ({
   focusSetup: null,
   day: null,
   home: false,
+  menu: false,
+  editor: null,
   toast: null,
   go: (t) => {
     const cur = get().tab;
@@ -42,5 +48,7 @@ export const useUI = create<UI>((set, get) => ({
   open: (k, r) => set({ [k]: r } as Partial<UI>),
   openDay: (d) => set({ day: d }),
   openHome: (v) => set({ home: v }),
+  openMenu: (v) => set({ menu: v }),
+  openEditor: (v) => set({ editor: v }),
   showToast: (title, line, tone = "plain") => set({ toast: { id: Date.now(), title, line, tone } }),
 }));

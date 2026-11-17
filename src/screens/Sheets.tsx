@@ -8,7 +8,7 @@ import { blockCredit, completion, currentStandard, dailyScore, difficulty, restP
 import { fmtDateLong, fmtDuration, fmtRange, todayKey, weekStart } from "../lib/time";
 import type { DayBlock, SkipReason } from "../lib/types";
 import { SKIP_OPTIONS, voice } from "../lib/voice";
-import { isEditable, selectBlock, useStore } from "../store/store";
+import { blocksFor, isEditable, selectBlock, useStore } from "../store/store";
 import { useUI } from "../store/ui";
 import { completeBlock } from "./actions";
 import { statusLabel } from "./Today";
@@ -37,6 +37,7 @@ function BlockBody({ date, b, onClose }: { date: string; b: DayBlock; onClose: (
   const isToday = date === todayKey();
   const label = statusLabel(b);
   const doneish = b.status === "done" || b.status === "partial";
+  const isEvent = b.category === "event";
 
   useEffect(() => setLocal(b.note ?? ""), [b.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -59,7 +60,7 @@ function BlockBody({ date, b, onClose }: { date: string; b: DayBlock; onClose: (
           <h2 className="text-[26px] leading-tight font-semibold tracking-[-0.02em]">{b.title}</h2>
           {b.subtitle && <p className="mt-1 text-[15px] text-mute">{b.subtitle}</p>}
         </div>
-        <Check
+        {!isEvent && <Check
           status={b.status}
           disabled={!editable}
           size={34}
@@ -71,7 +72,7 @@ function BlockBody({ date, b, onClose }: { date: string; b: DayBlock; onClose: (
               completeBlock(date, b.id);
             }
           }}
-        />
+        />}
       </div>
 
       {(label || stayedHard(b)) && (
@@ -84,7 +85,7 @@ function BlockBody({ date, b, onClose }: { date: string; b: DayBlock; onClose: (
       )}
 
       {/* main action */}
-      {editable && b.status === "planned" && isToday && (
+      {editable && b.status === "planned" && isToday && !isEvent && (
         <PrimaryButton
           className="mt-5"
           onClick={() => {
@@ -97,7 +98,7 @@ function BlockBody({ date, b, onClose }: { date: string; b: DayBlock; onClose: (
           </span>
         </PrimaryButton>
       )}
-      {editable && b.status === "missed" && (
+      {editable && b.status === "missed" && !isEvent && (
         <div className="mt-5 rounded-2xl border border-line bg-white/[0.03] p-4">
           <p className="text-[14px] text-mute">{voice.missed}</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
@@ -192,7 +193,21 @@ function BlockBody({ date, b, onClose }: { date: string; b: DayBlock; onClose: (
       {/* secondary */}
       {editable && (
         <div className="mt-6 flex gap-2">
-          {b.status === "planned" && (
+          {date >= todayKey() && (
+            <GhostButton
+              className="flex-1"
+              onClick={() => {
+                onClose();
+                setTimeout(() => open("block", null), 0);
+                useUI.getState().openEditor({ mode: "edit", date, id: b.id });
+              }}
+            >
+              <span className="inline-flex items-center gap-2">
+                <Icon name="note" size={16} /> Edit
+              </span>
+            </GhostButton>
+          )}
+          {b.status === "planned" && !isEvent && (
             <GhostButton className="flex-1" onClick={() => open("skip", { date, id: b.id })}>
               <span className="inline-flex items-center gap-2">
                 <Icon name="skip" size={16} /> Skip
@@ -363,6 +378,7 @@ export function DaySheet() {
   const open = useUI((s) => s.open);
   const day = useStore((s) => (date ? s.days[date] : undefined));
   const days = useStore((s) => s.days);
+  const openEditor = useUI((s) => s.openEditor);
   const settings = useStore((s) => s.settings);
   const useRestPass = useStore((s) => s.useRestPass);
   const removeRestPass = useStore((s) => s.removeRestPass);
@@ -388,7 +404,9 @@ export function DaySheet() {
       <div className="eyebrow">{date === todayKey() ? "Today" : "Day"}</div>
       <h2 className="mt-1.5 text-[24px] font-semibold tracking-[-0.02em]">{fmtDateLong(date)}</h2>
 
-      {!day ? (
+      {!day && date > todayKey() ? (
+        <FutureDay date={date} />
+      ) : !day ? (
         <p className="mt-4 text-[15px] text-mute">Before you started. Nothing tracked.</p>
       ) : (
         <>
@@ -442,6 +460,14 @@ export function DaySheet() {
             })}
           </div>
 
+          {date >= todayKey() && (
+            <GhostButton className="mt-3 w-full" onClick={() => openEditor({ mode: "add", date })}>
+              <span className="inline-flex items-center gap-2">
+                <Icon name="plus" size={16} /> Add to this day
+              </span>
+            </GhostButton>
+          )}
+
           {!day.restPass && below && thisWeek && date !== todayKey() && (
             <div className="mt-5">
               {!asking ? (
@@ -489,5 +515,49 @@ function Stat({ k, v }: { k: string; v: string }) {
       <div className="num text-[24px] font-semibold">{v}</div>
       <div className="text-[12px] text-faint">{k}</div>
     </div>
+  );
+}
+
+/** A day that hasn't started: the routine it will get, plus anything you've added. */
+function FutureDay({ date }: { date: string }) {
+  const template = useStore((s) => s.template);
+  const settings = useStore((s) => s.settings);
+  const extra = useStore((s) => s.oneOffs[date]);
+  const openEditor = useUI((s) => s.openEditor);
+  const planned = [...blocksFor(date, template, settings), ...(extra ?? [])].sort((a, b) => a.start - b.start);
+  return (
+    <>
+      <p className="mt-2 text-[14px] text-mute">Coming up. Plan it now and it'll be waiting.</p>
+      <div className="mt-4 overflow-hidden rounded-2xl border border-line">
+        {planned.length === 0 && <div className="p-4 text-[14px] text-mute">Nothing in the routine yet.</div>}
+        {planned.map((b) => {
+          const added = b.templateId === "once";
+          return (
+            <Pressable
+              key={b.id}
+              scale={0.99}
+              disabled={!added}
+              onClick={() => openEditor({ mode: "edit", date, id: b.id })}
+              className="flex w-full items-center gap-3 border-b border-line px-4 py-3 text-left last:border-b-0"
+            >
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: CATEGORY_COLOR[b.category] }} />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[15px] font-medium">{b.title}</div>
+                <div className="truncate text-[12px] text-faint">
+                  {fmtRange(b.start, b.duration)}
+                  {added ? " · added" : " · routine"}
+                </div>
+              </div>
+              {added && <Icon name="right" size={16} className="shrink-0 text-faint" />}
+            </Pressable>
+          );
+        })}
+      </div>
+      <PrimaryButton className="mt-4" onClick={() => openEditor({ mode: "add", date })}>
+        <span className="inline-flex items-center gap-2">
+          <Icon name="plus" size={18} stroke={2.2} /> Add to this day
+        </span>
+      </PrimaryButton>
+    </>
   );
 }

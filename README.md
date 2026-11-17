@@ -31,7 +31,8 @@ This is **Phase 1: core accountability**. Phases 2 (dynamic re-planning, Google 
 | **Standards** | No manual threshold. Your level sets the bar: Starting out 70% (2 rest passes a week), Building 80%, Solid 90%, Elite 100% (1 rest pass each). Each day keeps the standard it started with, so levelling up never rewrites history. |
 | **Scoring** | Daily discipline score (priority × difficulty), streak day when the day's standard is met, discipline index = 30-day avg × consistency, productivity = minutes + blocks delivered with a streak bonus up to 1.2×. |
 | **Rules** | 15-minute grid everywhere. Unticked blocks auto-mark *Not done* when their window closes. Corrections are logged and lock at the end of the next day. Excused skips leave the day's total. |
-| **I'm home** | One tap when you walk in: shower and dinner go first, then the evening re-plans around the fixed anchors (dogs, wind down). Flexible blocks shrink 15 min at a time before anything drops; family time is never cut. You see what changed and why before applying, and can undo. |
+| **Add and edit** | The **+ Add** on Today: add a habit block or an event (busy time, not scored) to any day, once or every week; edit or delete any block for just that day or every week. Tap a future day on the calendar to see its plan and add to it. |
+| **I'm home** | Only when you choose it (+ Add → "Home early or late?", or long-press the app icon): shower and dinner go first, then the evening re-plans around the fixed anchors (dogs, wind down). Flexible blocks shrink 15 min at a time before anything drops; family time is never cut. You see what changed and why before applying, and can undo. |
 | **You** | Name and look (Shugyo / Vow), your standard ladder, check-in timing, reminder defaults, haptics, sounds, family night, backup/restore, reset. |
 
 ## Run it

@@ -107,7 +107,7 @@ export function Streak() {
               const chain = linked(k) ? streakEndingAt(days, k, settings, today, firstDay) : 0;
               const tier = glowTier(chain);
               return (
-                <Pressable key={k} scale={0.9} disabled={s === "before" || s === "future"} onClick={() => openDay(k)} className="relative" aria-label={k}>
+                <Pressable key={k} scale={0.9} disabled={s === "before"} onClick={() => openDay(k)} className="relative" aria-label={k}>
                   {linkRight && (
                     <motion.span
                       initial={{ scaleX: 0 }}

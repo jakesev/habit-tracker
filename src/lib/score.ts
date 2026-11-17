@@ -2,7 +2,7 @@ import { addDays, diffDays, weekStart } from "./time";
 import type { Day, DayBlock, DateKey, Settings } from "./types";
 
 /** Blocks that count toward the day: excused skips are removed from the total. */
-export const countable = (b: DayBlock) => !b.excused;
+export const countable = (b: DayBlock) => !b.excused && b.category !== "event";
 
 /** 0–1 credit for a block: done = 1, partly done = share of the timer completed. */
 export function blockCredit(b: DayBlock): number {
@@ -214,7 +214,7 @@ export function productivity(
     const d = days[k];
     if (!d || d.restPass) continue;
     for (const b of d.blocks) {
-      if (b.excused) continue;
+      if (b.excused || b.category === "event") continue;
       // today's blocks that are still open don't count against you yet
       if (k === today && b.status === "planned") continue;
       plannedMin += b.duration;
