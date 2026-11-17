@@ -30,7 +30,7 @@ export function Pressable({ haptics = true, scale = 0.96, onClick, children, ...
 export function PrimaryButton({ className = "", children, ...rest }: PressableProps) {
   return (
     <Pressable
-      className={`relative h-14 w-full rounded-2xl bg-ember font-semibold text-[16px] text-black tracking-[-0.01em] shadow-[0_10px_30px_-10px_rgb(255_106_43/0.7),inset_0_1px_0_rgb(255_255_255/0.35)] disabled:opacity-40 ${className}`}
+      className={`relative h-14 w-full rounded-2xl bg-ember font-semibold text-[16px] text-black tracking-[-0.01em] shadow-[0_10px_30px_-10px_rgb(var(--ember-rgb)/0.7),inset_0_1px_0_rgb(255_255_255/0.35)] disabled:opacity-40 ${className}`}
       {...rest}
     >
       {children}
@@ -216,7 +216,7 @@ export function Scale({
               style={{
                 background: on ? `color-mix(in oklab, var(--color-ember) ${40 + t * 60}%, #2a2a30)` : "rgb(255 255 255 / 0.05)",
                 color: on ? "#0b0b0c" : "var(--color-mute)",
-                boxShadow: on ? `0 6px 18px -6px rgb(255 106 43 / ${0.3 + t * 0.5})` : "inset 0 0 0 1px rgb(255 255 255 / 0.05)",
+                boxShadow: on ? `0 6px 18px -6px rgb(var(--ember-rgb) / ${0.3 + t * 0.5})` : "inset 0 0 0 1px rgb(255 255 255 / 0.05)",
               }}
             >
               {n}

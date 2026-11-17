@@ -1,4 +1,4 @@
-// Stride Routine service worker: app shell offline, network-first for pages.
+// Service worker: app shell offline, network-first for pages.
 const CACHE = "stride-v1";
 
 self.addEventListener("install", (e) => {

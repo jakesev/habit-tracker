@@ -1,8 +1,10 @@
 import { useStore } from "../store/store";
+import { nativeHaptic } from "./native";
 
-/** Haptics: Android/Chrome support navigator.vibrate. iOS Safari does not, so sound + motion carry the feedback there. */
+/** Haptics: native on the Android app; navigator.vibrate in Android browsers; iOS browsers have none, so sound + motion carry it. */
 export function haptic(kind: "tap" | "success" | "hard" | "alarm" = "tap") {
   if (!useStore.getState().settings.haptics) return;
+  if (nativeHaptic(kind)) return;
   const pattern = { tap: 8, success: [12, 40, 18], hard: [30, 60, 30, 60, 60], alarm: [200, 120, 200, 120, 400] }[kind];
   try {
     navigator.vibrate?.(pattern as number | number[]);

@@ -1,4 +1,4 @@
--- Stride Routine · Phase 1 schema (Supabase / Postgres)
+-- Routine app · Phase 1 schema (Supabase / Postgres)
 -- Mirrors the app's local data model so on-device data can sync up later.
 -- Every table is locked to its owner with row level security.
 

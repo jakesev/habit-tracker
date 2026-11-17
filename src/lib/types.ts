@@ -38,6 +38,8 @@ export interface TemplateBlock {
   type: BlockType;
   priority: 1 | 2 | 3 | 4 | 5;
   checklist?: string[];
+  /** Placed the moment you get home (shower, dinner), in template order. */
+  homeAnchor?: boolean;
 }
 
 export interface Correction {
@@ -59,6 +61,12 @@ export interface DayBlock {
   duration: Min;
   minDuration: Min;
   checklist?: string[];
+  homeAnchor?: boolean;
+  /** The template's time and length, kept when a re-plan moves or shrinks the block. */
+  origStart?: Min;
+  origDuration?: Min;
+  /** Dropped by a re-plan (no time left). Excused, shown apart from the timeline. */
+  dropped?: boolean;
 
   status: BlockStatus;
   note?: string;
@@ -92,6 +100,9 @@ export interface Day {
   date: DateKey;
   blocks: DayBlock[];
   restPass?: RestPass;
+  /** When you tapped "I'm home", and the plan before it, for undo. */
+  homeAt?: Min;
+  beforeHome?: DayBlock[];
 }
 
 export type QuestionTiming = "after" | "before";
@@ -105,6 +116,10 @@ export interface Settings {
   sound: boolean;
   notifications: boolean;
   familyNight: number; // weekday for the weekly family block
+  identity: "ember" | "callus" | "standard" | "forge";
+  /** Usual time home from work (minutes), and bed time. */
+  homeTime: number;
+  bedTime: number;
 }
 
 /** A running (or paused) focus session. Stored as timestamps so it survives reloads. */

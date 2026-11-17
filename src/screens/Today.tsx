@@ -33,9 +33,14 @@ export function Today() {
   const day = useStore((s) => s.days[today]);
   const focus = useStore((s) => s.focus);
   const tick = useStore((s) => s.tick);
+  const undoHome = useStore((s) => s.undoHome);
+  const settings = useStore((s) => s.settings);
   const open = useUI((s) => s.open);
+  const openHome = useUI((s) => s.openHome);
 
-  const blocks = day?.blocks ?? [];
+  const all = day?.blocks ?? [];
+  const blocks = all.filter((b) => !b.dropped);
+  const droppedTonight = all.filter((b) => b.dropped);
   const t = nowMin(now);
   const pct = completion(day) ?? 0;
   const doneCount = blocks.filter((b) => b.status === "done" || b.status === "partial").length;
@@ -76,15 +81,48 @@ export function Today() {
         <span className="num">{left ? `${fmtDuration(left)} left on the plan` : "Nothing left on the plan"}</span>
       </div>
 
+      {/* I'm home: one tap re-plans the evening */}
+      {blocks.some((b) => b.homeAnchor) && t < settings.bedTime && (day?.homeAt == null ? t >= settings.homeTime - 120 : true) && (
+        <motion.section layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 380, damping: 32 }} className="mt-5">
+          {day?.homeAt == null ? (
+            <Pressable
+              scale={0.98}
+              onClick={() => openHome(true)}
+              className="flex w-full items-center gap-4 rounded-[22px] border border-line bg-white/[0.035] p-4 text-left"
+            >
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-ember/15 text-ember">
+                <Icon name="home" size={24} stroke={2} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[17px] font-semibold tracking-[-0.01em]">I'm home</span>
+                <span className="block text-[13px] text-faint">Shower, dinner, then the evening re-plans to fit.</span>
+              </span>
+              <Icon name="right" size={18} className="shrink-0 text-faint" />
+            </Pressable>
+          ) : (
+            <div className="flex items-center gap-3 rounded-2xl border border-line bg-white/[0.025] py-2 pr-2 pl-4 text-[13px]">
+              <Icon name="home" size={16} className="shrink-0 text-ember" />
+              <span className="num min-w-0 flex-1 text-mute">Home at {fmtTime(day.homeAt)} · plan adjusted</span>
+              <Pressable onClick={() => openHome(true)} className="h-9 rounded-xl px-3 font-medium text-ink">
+                Change
+              </Pressable>
+              <Pressable onClick={() => undoHome(today)} className="h-9 rounded-xl px-3 text-faint">
+                Undo
+              </Pressable>
+            </div>
+          )}
+        </motion.section>
+      )}
+
       {/* Hero: the one thing to do now */}
       {hero && (
         <motion.section
           layout
           className="relative mt-6 overflow-hidden rounded-[26px] border p-5"
           style={{
-            borderColor: current ? "rgb(255 106 43 / 0.35)" : "var(--color-line)",
+            borderColor: current ? "rgb(var(--ember-rgb) / 0.35)" : "var(--color-line)",
             background: current
-              ? "radial-gradient(120% 120% at 0% 0%, rgb(255 106 43 / 0.16), transparent 55%), linear-gradient(180deg, rgb(255 255 255 / 0.04), rgb(255 255 255 / 0.015))"
+              ? "radial-gradient(120% 120% at 0% 0%, rgb(var(--ember-rgb) / 0.16), transparent 55%), linear-gradient(180deg, rgb(255 255 255 / 0.04), rgb(255 255 255 / 0.015))"
               : "linear-gradient(180deg, rgb(255 255 255 / 0.04), rgb(255 255 255 / 0.015))",
           }}
         >
@@ -209,6 +247,24 @@ export function Today() {
           })}
           {nowIndex === -1 && !current && blocks.length > 0 && <NowLine t={t} />}
         </ol>
+        {droppedTonight.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-dashed border-white/10 px-4 py-3">
+            <div className="eyebrow">Dropped tonight · excused</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {droppedTonight.map((b) => (
+                <Pressable
+                  key={b.id}
+                  scale={0.95}
+                  onClick={() => open("block", { date: today, id: b.id })}
+                  className="rounded-full bg-white/[0.05] px-3 py-1.5 text-[13px] text-mute"
+                >
+                  {b.title}
+                </Pressable>
+              ))}
+            </div>
+            <p className="mt-2 text-[12px] text-faint">No time left after getting home. They don't count against you.</p>
+          </div>
+        )}
       </section>
     </div>
   );
@@ -219,7 +275,7 @@ function NowLine({ t }: { t: number }) {
     <li className="relative my-1 mb-3 flex items-center gap-3" aria-label="Current time">
       <div className="num w-[52px] shrink-0 text-right text-[11px] font-semibold text-ember">{fmtTime(Math.floor(t))}</div>
       <div className="relative flex w-3 shrink-0 justify-center">
-        <div className="h-2 w-2 rounded-full bg-ember shadow-[0_0_10px_2px_rgb(255_106_43/0.6)]" />
+        <div className="h-2 w-2 rounded-full bg-ember shadow-[0_0_10px_2px_rgb(var(--ember-rgb)/0.6)]" />
       </div>
       <div className="h-px flex-1 bg-gradient-to-r from-ember/70 to-transparent" />
     </li>

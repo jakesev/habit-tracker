@@ -14,11 +14,13 @@ interface UI {
   checkin: Ref | null; // post-task check-in
   focusSetup: Ref | null; // focus timer, before start
   day: DateKey | null; // day detail from calendar
+  home: boolean; // "I'm home" re-plan sheet
   toast: { id: number; title: string; line?: string; tone: "hard" | "plain" } | null;
 
   go: (t: Tab) => void;
   open: (k: "block" | "skip" | "checkin" | "focusSetup", r: Ref | null) => void;
   openDay: (d: DateKey | null) => void;
+  openHome: (v: boolean) => void;
   showToast: (title: string, line?: string, tone?: "hard" | "plain") => void;
 }
 
@@ -30,6 +32,7 @@ export const useUI = create<UI>((set, get) => ({
   checkin: null,
   focusSetup: null,
   day: null,
+  home: false,
   toast: null,
   go: (t) => {
     const cur = get().tab;
@@ -38,5 +41,6 @@ export const useUI = create<UI>((set, get) => ({
   },
   open: (k, r) => set({ [k]: r } as Partial<UI>),
   openDay: (d) => set({ day: d }),
+  openHome: (v) => set({ home: v }),
   showToast: (title, line, tone = "plain") => set({ toast: { id: Date.now(), title, line, tone } }),
 }));

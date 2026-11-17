@@ -15,9 +15,8 @@
   --color-faint: #63636e;
 
   /* One strong accent: ember. Used for the main action, the streak, and the live block. */
-  --color-ember: #ff6a2b;
-  --color-ember-hi: #ff8a4c;
-  --color-ember-lo: #c2410c;
+  --color-ember: rgb(var(--ember-rgb));
+  --color-ember-hi: rgb(var(--ember-hi-rgb));
 
   /* Category colours, used sparingly (dots, thin rails). */
   --color-skill: #8f9dff;
@@ -35,8 +34,11 @@
 
 :root {
   color-scheme: dark;
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ember-rgb: 255 106 43;
+  --ember-hi-rgb: 255 138 76;
+  /* Android app: Capacitor injects --safe-area-inset-*; browsers: env(). */
+  --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
 }
 
 @layer base {
@@ -64,7 +66,7 @@ body {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(120% 60% at 50% -10%, rgb(255 106 43 / 0.09), transparent 60%),
+    radial-gradient(120% 60% at 50% -10%, rgb(var(--ember-rgb) / 0.09), transparent 60%),
     radial-gradient(80% 50% at 100% 110%, rgb(143 157 255 / 0.05), transparent 60%);
 }
 

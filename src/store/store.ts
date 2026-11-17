@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { seedTemplate } from "../lib/seed";
+import { HOME_BLOCKS, seedTemplate } from "../lib/seed";
+import type { PlanResult } from "../lib/plan";
 import { addDays, diffDays, fromKey, nowMin, snapDuration, todayKey } from "../lib/time";
 import {
   EXCUSED_REASONS,
@@ -22,6 +23,9 @@ export const DEFAULT_SETTINGS: Settings = {
   sound: true,
   notifications: false,
   familyNight: 6,
+  identity: "ember",
+  homeTime: 17 * 60,
+  bedTime: 21 * 60,
 };
 
 export type Answers = Partial<Pick<DayBlock, "resistance" | "energy" | "startDifficulty" | "note">>;
@@ -49,6 +53,8 @@ interface State {
   finishFocus: (outcome: "done" | "partial" | "skipped", focusedMs?: number) => void;
   cancelFocus: () => void;
 
+  applyHomePlan: (date: DateKey, plan: PlanResult) => void;
+  undoHome: (date: DateKey) => void;
   useRestPass: (date: DateKey, reason: string) => void;
   removeRestPass: (date: DateKey) => void;
   updateSettings: (s: Partial<Settings>) => void;
@@ -75,6 +81,7 @@ function blocksFor(date: DateKey, template: TemplateBlock[], settings: Settings)
       duration: snapDuration(t.duration),
       minDuration: snapDuration(t.minDuration),
       checklist: t.checklist,
+      homeAnchor: t.homeAnchor,
       status: "planned",
       reminderLead: settings.defaultReminderLead,
     }));
@@ -128,18 +135,22 @@ export const useStore = create<State>()(
           const first = s.firstDay ?? today;
           const days = { ...s.days };
           let changed = !s.firstDay;
-          for (let k = first; diffDays(k, today) >= 0; k = addDays(k, 1)) {
+          // Tomorrow is created a day early so its reminders can be scheduled tonight.
+          const tomorrow = addDays(today, 1);
+          for (let k = first; diffDays(k, tomorrow) >= 0; k = addDays(k, 1)) {
             if (!days[k]) {
               days[k] = { date: k, blocks: blocksFor(k, s.template, s.settings) };
               changed = true;
             }
             // Auto-miss: a planned block whose window has closed becomes Not done.
-            const cutoff = k === today ? nowMin(now) : Infinity;
+            const cutoff = k === today ? nowMin(now) : k > today ? -Infinity : Infinity;
             const d = days[k];
             let dirty = false;
             const blocks = d.blocks.map((b) => {
               const running = s.focus?.blockId === b.id;
-              if (b.status === "planned" && !running && b.start + b.duration <= cutoff) {
+              // Shower and dinner wait for "I'm home"; if it never comes they close at bed time.
+              const end = b.homeAnchor && d.homeAt == null && k === today ? s.settings.bedTime : b.start + b.duration;
+              if (b.status === "planned" && !running && end <= cutoff) {
                 dirty = true;
                 return { ...b, status: "missed" as const };
               }
@@ -197,7 +208,7 @@ export const useStore = create<State>()(
           patch(date, id, (b) => {
             const end = b.start + b.duration;
             const to = date === todayKey() && nowMin() < end ? "planned" : "missed";
-            return log({ ...b, status: to, skipReason: undefined, excused: undefined }, "status", b.status, to, date);
+            return log({ ...b, status: to, skipReason: undefined, excused: undefined, dropped: undefined }, "status", b.status, to, date);
           }),
 
         setReminderLead: (date, id, lead) => patch(date, id, (b) => ({ ...b, reminderLead: lead })),
@@ -244,6 +255,28 @@ export const useStore = create<State>()(
           set({ focus: null });
         },
         cancelFocus: () => set({ focus: null }),
+
+        applyHomePlan: (date, plan) =>
+          set((s) => {
+            const d = s.days[date];
+            if (!d) return s;
+            return {
+              days: { ...s.days, [date]: { ...d, blocks: plan.blocks, homeAt: plan.homeAt, beforeHome: d.beforeHome ?? d.blocks } },
+            };
+          }),
+        undoHome: (date) =>
+          set((s) => {
+            const d = s.days[date];
+            if (!d?.beforeHome) return s;
+            const { beforeHome, homeAt: _h, ...rest } = d;
+            // Keep anything ticked since; restore the rest to the old plan.
+            const now = new Map(d.blocks.map((b) => [b.id, b]));
+            const blocks = beforeHome.map((b) => {
+              const cur = now.get(b.id);
+              return cur && cur.status !== "planned" && cur.status !== "skipped" ? cur : b;
+            });
+            return { days: { ...s.days, [date]: { ...rest, blocks } } };
+          }),
 
         useRestPass: (date, reason) =>
           set((s) => ({ days: { ...s.days, [date]: { ...s.days[date], restPass: { reason, at: Date.now() } } } })),
@@ -293,7 +326,38 @@ export const useStore = create<State>()(
     {
       name: "stride-routine-v1",
       storage: safeStorage,
-      version: 1,
+      version: 2,
+      migrate: (persisted, from) => {
+        const p = persisted as { template?: { id: string }[]; settings?: object; days?: Record<string, { date: string; blocks: { templateId: string }[] }> };
+        if (from < 2) {
+          // v2: shower + dinner, placed when you tap "I'm home".
+          if (p.template && !p.template.some((t) => t.id === "shower")) p.template = [...HOME_BLOCKS, ...p.template];
+          p.settings = { ...DEFAULT_SETTINGS, ...p.settings };
+          const today = todayKey();
+          for (const k of Object.keys(p.days ?? {})) {
+            const d = p.days![k];
+            if (k < today || d.blocks.some((b) => b.templateId === "shower")) continue;
+            const dow = fromKey(k).getDay();
+            const add = HOME_BLOCKS.filter((t) => t.days.includes(dow)).map((t) => ({
+              id: `${t.id}-${uid()}`,
+              templateId: t.id,
+              title: t.title,
+              subtitle: t.subtitle,
+              category: t.category,
+              type: t.type,
+              priority: t.priority,
+              start: t.start,
+              duration: t.duration,
+              minDuration: t.minDuration,
+              homeAnchor: true,
+              status: "planned",
+              reminderLead: DEFAULT_SETTINGS.defaultReminderLead,
+            }));
+            d.blocks = ([...add, ...d.blocks] as unknown as { start: number }[]).sort((a, b) => a.start - b.start) as unknown as typeof d.blocks;
+          }
+        }
+        return persisted as never;
+      },
       partialize: (s) => ({
         firstDay: s.firstDay,
         template: s.template,

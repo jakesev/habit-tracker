@@ -34,7 +34,7 @@ export function DayBox({
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 rounded-[10px]"
           style={{
-            boxShadow: `0 0 ${glow}px ${glow / 3}px rgb(255 106 43 / ${0.22 + tier * 0.08})`,
+            boxShadow: `0 0 ${glow}px ${glow / 3}px rgb(var(--ember-rgb) / ${0.22 + tier * 0.08})`,
             animation: `breathe ${3.4 - tier * 0.3}s ease-in-out infinite`,
           }}
         />

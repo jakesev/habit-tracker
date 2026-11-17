@@ -4,6 +4,36 @@ import type { TemplateBlock } from "./types";
 const WEEKDAYS = [1, 2, 3, 4, 5];
 const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6];
 
+/** Placed the moment you tap "I'm home". Times shown are for a 5 PM finish. */
+export const HOME_BLOCKS: TemplateBlock[] = [
+  {
+    id: "shower",
+    title: "Shower",
+    subtitle: "Wash the workday off",
+    category: "chore",
+    days: WEEKDAYS,
+    start: hm(17, 0),
+    duration: 15,
+    minDuration: 15,
+    type: "flexible",
+    priority: 4,
+    homeAnchor: true,
+  },
+  {
+    id: "dinner",
+    title: "Dinner",
+    subtitle: "Sit down. Eat properly.",
+    category: "family",
+    days: WEEKDAYS,
+    start: hm(17, 15),
+    duration: 45,
+    minDuration: 30,
+    type: "flexible",
+    priority: 4,
+    homeAnchor: true,
+  },
+];
+
 /**
  * The user's routine. Every start and duration sits on the 15-minute grid.
  *
@@ -15,6 +45,7 @@ const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6];
  */
 export function seedTemplate(familyNight = 6): TemplateBlock[] {
   return [
+    ...HOME_BLOCKS,
     {
       id: "writing",
       title: "Writing",

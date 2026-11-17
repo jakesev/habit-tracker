@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Check } from "../components/Check";
 import { CATEGORY_COLOR, CATEGORY_LABEL, GhostButton, Icon, Pressable, PrimaryButton, Scale, Segmented, Sheet, spring } from "../components/ui";
 import { haptic, sound } from "../lib/feedback";
+import { useAccent } from "../lib/identity";
 import { blockCredit, completion, dailyScore, difficulty, restPassesUsedInWeek, stayedHard } from "../lib/score";
 import { fmtDateLong, fmtDuration, fmtRange, todayKey, weekStart } from "../lib/time";
 import type { DayBlock, SkipReason } from "../lib/types";
@@ -27,6 +28,7 @@ export function BlockSheet() {
 }
 
 function BlockBody({ date, b, onClose }: { date: string; b: DayBlock; onClose: () => void }) {
+  const accent = useAccent();
   const { setNote, setReminderLead, toggleChecklist, reopen, tick } = useStore.getState();
   const focus = useStore((s) => s.focus);
   const open = useUI((s) => s.open);
@@ -129,7 +131,7 @@ function BlockBody({ date, b, onClose }: { date: string; b: DayBlock; onClose: (
                   className="flex w-full items-center gap-3 border-b border-line px-4 py-3.5 text-left last:border-b-0"
                 >
                   <motion.span
-                    animate={{ backgroundColor: on ? "rgb(255 106 43)" : "rgba(0,0,0,0)", borderColor: on ? "rgb(255 106 43)" : "rgba(255,255,255,0.25)" }}
+                    animate={{ backgroundColor: on ? accent(1) : "rgba(0, 0, 0, 0)", borderColor: on ? accent(1) : "rgba(255, 255, 255, 0.25)" }}
                     transition={{ duration: 0.15 }}
                     className="grid h-5 w-5 shrink-0 place-items-center rounded-md border-[1.5px]"
                   >

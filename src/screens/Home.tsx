@@ -20,6 +20,8 @@ import { addDays, DOW_SHORT, fmtTime, fromKey, nowMin, weekStart } from "../lib/
 import type { Day, DateKey } from "../lib/types";
 import { useStore } from "../store/store";
 import { useUI } from "../store/ui";
+import { Logo } from "../components/Logo";
+import { useIdentity } from "../lib/identity";
 
 const stagger = (i: number) => ({
   initial: { opacity: 0, y: 14 },
@@ -29,6 +31,7 @@ const stagger = (i: number) => ({
 
 export function Home() {
   const { now, today } = useToday();
+  const identity = useIdentity();
   const days = useStore((s) => s.days);
   const settings = useStore((s) => s.settings);
   const firstDay = useStore((s) => s.firstDay) ?? today;
@@ -55,7 +58,7 @@ export function Home() {
       <motion.header {...stagger(0)} className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Logo />
-          <span className="text-[17px] font-semibold tracking-[-0.02em]">Stride</span>
+          <span className="text-[17px] font-semibold tracking-[-0.02em]">{identity.name}</span>
         </div>
         <span className="eyebrow">Last 30 days</span>
       </motion.header>
@@ -65,7 +68,7 @@ export function Home() {
         <div
           className="pointer-events-none absolute top-1/2 left-1/2 h-[240px] w-[240px] -translate-x-1/2 -translate-y-[58%] rounded-full"
           style={{
-            background: `radial-gradient(circle, rgb(255 106 43 / ${0.1 + Math.min(tier, 5) * 0.06}) 0%, transparent 65%)`,
+            background: `radial-gradient(circle, rgb(var(--ember-rgb) / ${0.1 + Math.min(tier, 5) * 0.06}) 0%, transparent 65%)`,
             animation: streak > 0 ? "breathe 3.4s ease-in-out infinite" : undefined,
           }}
         />
@@ -146,7 +149,7 @@ export function Home() {
           </div>
           <Pressable
             onClick={() => open("focusSetup", { date: today, id: next.id })}
-            className="flex h-12 items-center gap-2 rounded-2xl bg-ember px-5 font-semibold text-black shadow-[0_8px_24px_-8px_rgb(255_106_43/0.7)]"
+            className="flex h-12 items-center gap-2 rounded-2xl bg-ember px-5 font-semibold text-black shadow-[0_8px_24px_-8px_rgb(var(--ember-rgb)/0.7)]"
           >
             <Icon name="play" size={16} fill stroke={0} /> Start
           </Pressable>
@@ -224,13 +227,4 @@ function smartLine(days: Record<DateKey, Day>, today: DateKey): string {
   const hardPart = hard > 0 ? ` You stayed hard ${hard}× this week.` : "";
   if (pct === 100) return `Every skill block done this week.${hardPart} Keep the standard.`;
   return `Weakest this week: ${weak}, ${v.done} of ${v.total} done (${pct}%). Give it the next free 15.${hardPart}`;
-}
-
-function Logo() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="9" fill="var(--color-ember)" />
-      <path d="M9 21.5 14 16l3.5 3.5L23 11" fill="none" stroke="#0b0b0c" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
 }

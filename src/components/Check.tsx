@@ -2,6 +2,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { haptic, primeAudio, sound } from "../lib/feedback";
 import type { BlockStatus } from "../lib/types";
+import { useAccent } from "../lib/identity";
 import { Icon, spring } from "./ui";
 
 const RAYS = 10;
@@ -21,6 +22,7 @@ export function Check({
   label: string;
 }) {
   const reduce = useReducedMotion();
+  const accent = useAccent();
   const done = status === "done" || status === "partial";
   const [burst, setBurst] = useState(0);
   const prev = useRef(done);
@@ -85,12 +87,12 @@ export function Check({
         className="relative grid place-items-center rounded-[10px]"
         style={{ width: size, height: size }}
         animate={{
-          backgroundColor: done ? "rgb(255 106 43 / 1)" : "rgb(255 255 255 / 0)",
+          backgroundColor: done ? accent(1) : "rgba(255, 255, 255, 0)",
           boxShadow: done
-            ? "0 0 0 0px rgb(255 106 43 / 0), 0 6px 18px -4px rgb(255 106 43 / 0.65)"
+            ? `inset 0 0 0 0px rgba(255, 255, 255, 0), 0 6px 18px -4px ${accent(0.65)}`
             : missed
-              ? "inset 0 0 0 1.75px rgb(255 255 255 / 0.14)"
-              : "inset 0 0 0 1.75px rgb(255 255 255 / 0.28)",
+              ? "inset 0 0 0 1.75px rgba(255, 255, 255, 0.14), 0 0px 0px 0px rgba(0, 0, 0, 0)"
+              : "inset 0 0 0 1.75px rgba(255, 255, 255, 0.28), 0 0px 0px 0px rgba(0, 0, 0, 0)",
           scale: done ? [1, 1.18, 1] : 1,
         }}
         transition={{ duration: 0.28, scale: { type: "spring", stiffness: 600, damping: 14 } }}

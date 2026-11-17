@@ -1,9 +1,13 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { GhostButton, Icon, Pressable, Segmented, Toggle } from "../components/ui";
 import { haptic } from "../lib/feedback";
 import { DOW_SHORT, fmtDuration, fmtRange } from "../lib/time";
 import { useStore } from "../store/store";
 import { useUI } from "../store/ui";
+import { motion } from "framer-motion";
+import { Logo } from "../components/Logo";
+import { IDENTITIES, useIdentity } from "../lib/identity";
+import { getLauncherIdentity, isNative, requestNotificationPermission, setLauncherIdentity, shareBackup } from "../lib/native";
 
 export function You() {
   const settings = useStore((s) => s.settings);
@@ -16,7 +20,12 @@ export function You() {
 
   const enableNotifications = async (on: boolean) => {
     if (!on) return update({ notifications: false });
-    if (!notifSupported) return toast("Not supported here", "Add Stride to your home screen first.");
+    if (isNative) {
+      const ok = await requestNotificationPermission();
+      update({ notifications: ok });
+      return ok ? toast("Reminders on", "They'll fire even when the app is closed.") : toast("Notifications blocked", "Allow them in Android settings for this app.");
+    }
+    if (!notifSupported) return toast("Not supported here", "Add the app to your home screen first.");
     const p = await Notification.requestPermission();
     if (p === "granted") {
       update({ notifications: true });
@@ -24,18 +33,33 @@ export function You() {
     } else toast("Notifications blocked", "Turn them on in your phone's settings.");
   };
 
-  const exportData = () => {
+  const exportData = async () => {
     const s = useStore.getState();
-    const blob = new Blob([JSON.stringify({ firstDay: s.firstDay, template: s.template, days: s.days, settings: s.settings }, null, 2)], {
+    const json = JSON.stringify({ firstDay: s.firstDay, template: s.template, days: s.days, settings: s.settings }, null, 2);
+    const name = `${identity.name.toLowerCase()}-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    if (isNative) {
+      try {
+        await shareBackup(json, name);
+      } catch {
+        toast("Backup didn't save", "Try again, then pick Drive or Files.");
+      }
+      return;
+    }
+    const blob = new Blob([json], {
       type: "application/json",
     });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `stride-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
 
+  const identity = useIdentity();
+  const [launcherId, setLauncherId] = useState<string | null>(null);
+  useEffect(() => {
+    getLauncherIdentity().then(setLauncherId);
+  }, []);
   const weekdays = template.filter((t) => t.days.includes(2)).sort((a, b) => a.start - b.start);
 
   return (
@@ -44,6 +68,62 @@ export function You() {
         <div className="eyebrow">You</div>
         <h1 className="mt-2 text-[27px] font-semibold tracking-[-0.025em]">Set the standard.</h1>
       </header>
+
+      <section className="mt-7">
+        <div className="eyebrow mb-2 px-1">Name and look</div>
+        <div className="grid grid-cols-2 gap-2.5">
+          {IDENTITIES.map((i) => {
+            const on = i.id === identity.id;
+            return (
+              <Pressable
+                key={i.id}
+                scale={0.96}
+                aria-pressed={on}
+                onClick={() => {
+                  update({ identity: i.id });
+                  haptic("success");
+                }}
+                className="relative overflow-hidden rounded-[20px] border p-4 text-left transition-colors"
+                style={{
+                  borderColor: on ? `rgb(${i.rgb.join(" ")} / 0.55)` : "var(--color-line)",
+                  background: on ? `radial-gradient(120% 100% at 0% 0%, rgb(${i.rgb.join(" ")} / 0.16), transparent 70%)` : "rgb(255 255 255 / 0.025)",
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <Logo identity={i} size={40} />
+                  {on && (
+                    <motion.span layoutId="identity-on" className="grid h-6 w-6 place-items-center rounded-full" style={{ background: `rgb(${i.rgb.join(" ")})` }}>
+                      <Icon name="check" size={14} stroke={3} className="text-black" />
+                    </motion.span>
+                  )}
+                </div>
+                <div className="mt-3 text-[16px] font-semibold tracking-[-0.01em]">{i.name}</div>
+                <div className="mt-0.5 text-[12px] leading-snug text-faint">{i.line}</div>
+              </Pressable>
+            );
+          })}
+        </div>
+        {isNative && launcherId != null && launcherId !== identity.id ? (
+          <div className="mt-3 rounded-2xl border border-line bg-white/[0.03] p-4">
+            <GhostButton
+              className="w-full"
+              onClick={async () => {
+                if (await setLauncherIdentity(identity.id)) {
+                  setLauncherId(identity.id);
+                  toast(`${identity.name} is on your phone`, "If the icon vanished from your home screen, drag it back from the app drawer.");
+                }
+              }}
+            >
+              <span className="inline-flex items-center gap-2">
+                <Logo identity={identity} size={22} /> Use {identity.name} on the home screen
+              </span>
+            </GhostButton>
+            <p className="mt-2 text-[12px] text-faint">Changes the app's icon and name. Some launchers take the old icon off your home screen; add it back from the app drawer.</p>
+          </div>
+        ) : (
+          <p className="mt-2 px-1 text-[12px] text-faint">Tap to try each one. {isNative ? "This one is on your home screen." : ""}</p>
+        )}
+      </section>
 
       <Group title="Streak">
         <Row label="A day counts at" hint="One missed block shouldn't wipe a good week.">
@@ -72,7 +152,7 @@ export function You() {
       </Group>
 
       <Group title="Reminders">
-        <Row label="Notifications" hint={notifSupported ? "While Stride is open or in the background." : "Add to home screen to enable."}>
+        <Row label="Notifications" hint={isNative ? "Before each block, even when the app is closed." : notifSupported ? "While the app is open or in the background." : "Add to home screen to enable."}>
           <Toggle label="Notifications" on={settings.notifications} onChange={enableNotifications} />
         </Row>
         <div className="px-4 py-4">
@@ -89,7 +169,7 @@ export function You() {
       </Group>
 
       <Group title="Feel">
-        <Row label="Haptics" hint="Android only. iPhone browsers don't allow vibration.">
+        <Row label="Haptics" hint={isNative ? undefined : "Android only. iPhone browsers don't allow vibration."}>
           <Toggle
             label="Haptics"
             on={settings.haptics}
@@ -156,7 +236,7 @@ export function You() {
               const f = e.target.files?.[0];
               if (!f) return;
               const ok = useStore.getState().importData(await f.text());
-              toast(ok ? "Restored" : "That file didn't work", ok ? "Your history is back." : "Pick a Stride backup file.");
+              toast(ok ? "Restored" : "That file didn't work", ok ? "Your history is back." : "Pick a backup file from this app.");
               e.target.value = "";
             }}
           />
@@ -190,7 +270,7 @@ export function You() {
           </div>
         )}
       </div>
-      <p className="mt-6 text-center text-[12px] text-faint">Stride Routine · Phase 1</p>
+      <p className="mt-6 text-center text-[12px] text-faint">{identity.name} · Phase 1</p>
     </div>
   );
 }

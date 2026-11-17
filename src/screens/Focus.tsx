@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { GhostButton, Icon, Pressable, PrimaryButton, Scale, spring } from "../components/ui";
 import { haptic, notify, primeAudio, sound } from "../lib/feedback";
+import { cancelOnce, isNative, keepAwake, scheduleOnce } from "../lib/native";
 import { fmtClock, fmtDuration, STEP } from "../lib/time";
 import { voice } from "../lib/voice";
 import { selectBlock, useStore } from "../store/store";
@@ -35,7 +36,7 @@ export function FocusScreen() {
         >
           <div
             className="pointer-events-none absolute inset-0"
-            style={{ background: "radial-gradient(90% 55% at 50% 30%, rgb(255 106 43 / 0.12), transparent 70%)" }}
+            style={{ background: "radial-gradient(90% 55% at 50% 30%, rgb(var(--ember-rgb) / 0.12), transparent 70%)" }}
           />
           <div className="relative mx-auto flex min-h-full max-w-[520px] flex-col px-6 pt-[calc(14px+var(--safe-top))] pb-[calc(24px+var(--safe-bottom))]">
             <div className="flex items-center justify-between">
@@ -190,6 +191,7 @@ function Running({ title, checklist, done, date, id }: { title: string; checklis
 
   // Keep the screen awake while the timer runs.
   useEffect(() => {
+    if (keepAwake(!paused)) return () => void keepAwake(false);
     let lock: { release: () => Promise<void> } | null = null;
     const nav = navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> } };
     if (!paused && nav.wakeLock) nav.wakeLock.request("screen").then((l) => (lock = l)).catch(() => {});
@@ -225,7 +227,7 @@ function Running({ title, checklist, done, date, id }: { title: string; checklis
             strokeWidth={10}
             strokeLinecap="round"
             strokeDasharray={C}
-            style={{ filter: "drop-shadow(0 0 10px rgb(255 106 43 / 0.55))" }}
+            style={{ filter: "drop-shadow(0 0 10px rgb(var(--ember-rgb) / 0.55))" }}
           />
         </svg>
         <div className="text-center">
@@ -324,7 +326,27 @@ function Running({ title, checklist, done, date, id }: { title: string; checklis
  * Runs app-wide (even with the timer minimised): halfway and two-minute buzzes,
  * and the end-of-timer alarm, which brings the focus screen back up.
  */
+const FOCUS_ALARM_ID = 777_001;
+
 export function useFocusWatcher() {
+  // In the Android app, the end-of-timer alarm is also scheduled with the system,
+  // so it rings even if the screen is off or the app was swiped away.
+  useEffect(() => {
+    if (!isNative) return;
+    let last = "";
+    const apply = (f: ReturnType<typeof useStore.getState>["focus"]) => {
+      const key = f?.endsAt ? `${f.blockId}:${f.endsAt}` : "";
+      if (key === last) return;
+      last = key;
+      if (f?.endsAt) {
+        const title = selectBlock(useStore.getState(), f.date, f.blockId)?.title ?? "Focus";
+        scheduleOnce(FOCUS_ALARM_ID, `${title} · time`, voice.timer.ended, f.endsAt);
+      } else cancelOnce(FOCUS_ALARM_ID);
+    };
+    apply(useStore.getState().focus);
+    return useStore.subscribe((s) => apply(s.focus));
+  }, []);
+
   useEffect(() => {
     const t = setInterval(() => {
       const st = useStore.getState();
@@ -348,7 +370,7 @@ export function useFocusWatcher() {
         useStore.setState({ focus: { ...f, alarmed: true } });
         haptic("alarm");
         sound("alarm");
-        notify(`${title} · time`, voice.timer.ended, "focus");
+        if (!isNative) notify(`${title} · time`, voice.timer.ended, "focus");
         useUI.getState().open("focusSetup", { date: f.date, id: f.blockId });
       }
     }, 500);

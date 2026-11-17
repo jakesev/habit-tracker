@@ -2,11 +2,14 @@ import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { Icon, Pressable, spring } from "./components/ui";
 import { notify } from "./lib/feedback";
+import { useApplyIdentity } from "./lib/identity";
+import { isNative, setupNativeChrome, syncReminders } from "./lib/native";
 import { fmtClock, nowMin, todayKey } from "./lib/time";
 import { selectBlock, useStore } from "./store/store";
 import { TABS, useUI, type Tab } from "./store/ui";
 import { FocusScreen, useFocusWatcher } from "./screens/Focus";
 import { Home } from "./screens/Home";
+import { ArriveSheet } from "./screens/Arrive";
 import { BlockSheet, CheckInSheet, DaySheet, SkipSheet } from "./screens/Sheets";
 import { Streak } from "./screens/Streak";
 import { Today } from "./screens/Today";
@@ -22,12 +25,27 @@ export default function App() {
 
   useEffect(() => {
     useStore.getState().ensureDays();
+    setupNativeChrome(handleBack, handleLink);
+    // Keep the phone's scheduled reminders in step with the plan.
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const sync = () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        const s = useStore.getState();
+        syncReminders(s.days, s.settings.notifications);
+      }, 400);
+    };
+    sync();
+    return useStore.subscribe((s, prev) => {
+      if (s.days !== prev.days || s.settings !== prev.settings) sync();
+    });
   }, []);
   useEffect(() => {
     scroller.current?.scrollTo({ top: 0 });
   }, [tab]);
   useFocusWatcher();
   useReminders();
+  useApplyIdentity();
 
   return (
     <MotionConfig reducedMotion="user">
@@ -57,10 +75,33 @@ export default function App() {
       <BlockSheet />
       <SkipSheet />
       <CheckInSheet />
+      <ArriveSheet />
       <FocusScreen />
       <Toast />
     </MotionConfig>
   );
+}
+
+/** routine://im-home → open the "I'm home" re-plan on Today. */
+function handleLink(url: string) {
+  if (url.includes("im-home")) {
+    const ui = useUI.getState();
+    ui.go("today");
+    setTimeout(() => ui.openHome(true), 250);
+  } else if (url.includes("today")) useUI.getState().go("today");
+}
+
+/** Android back button: close the top-most layer, then go Home, then leave the app. */
+function handleBack(): boolean {
+  const ui = useUI.getState();
+  if (ui.focusSetup) return ui.open("focusSetup", null), true;
+  if (ui.checkin) return ui.open("checkin", null), true;
+  if (ui.skip) return ui.open("skip", null), true;
+  if (ui.home) return ui.openHome(false), true;
+  if (ui.block) return ui.open("block", null), true;
+  if (ui.day) return ui.openDay(null), true;
+  if (ui.tab !== "home") return ui.go("home"), true;
+  return false;
 }
 
 /* ------------------------------------------------------------------ Tab bar */
@@ -128,7 +169,7 @@ function TimerPill() {
         >
           <Pressable
             onClick={() => open("focusSetup", { date: focus.date, id: focus.blockId })}
-            className="flex h-12 items-center gap-3 rounded-full border border-ember/30 bg-[#1a120e]/95 pr-5 pl-4 shadow-[0_12px_30px_-8px_rgb(255_106_43/0.45)] backdrop-blur-xl"
+            className="flex h-12 items-center gap-3 rounded-full border border-ember/30 bg-[color-mix(in_oklab,var(--color-ember)_10%,#101012)]/95 pr-5 pl-4 shadow-[0_12px_30px_-8px_rgb(var(--ember-rgb)/0.45)] backdrop-blur-xl"
           >
             <span className="h-2 w-2 rounded-full bg-ember" style={{ animation: focus.endsAt ? "breathe 1.4s ease-in-out infinite" : undefined }} />
             <span className="max-w-[160px] truncate text-[14px] font-medium">{title}</span>
@@ -162,7 +203,7 @@ function Toast() {
             exit={{ y: -16, opacity: 0, scale: 0.98 }}
             transition={spring}
             className={`max-w-[400px] rounded-[20px] border px-5 py-3.5 shadow-[0_20px_40px_-12px_rgb(0_0_0/0.9)] backdrop-blur-xl ${
-              shown.tone === "hard" ? "border-ember/40 bg-[#1d130e]/95" : "border-line-strong bg-[#18181c]/95"
+              shown.tone === "hard" ? "border-ember/40 bg-[color-mix(in_oklab,var(--color-ember)_12%,#101012)]/95" : "border-line-strong bg-[#18181c]/95"
             }`}
           >
             <div className={`flex items-center gap-2 text-[15px] font-semibold ${shown.tone === "hard" ? "text-ember-hi" : ""}`}>
@@ -181,11 +222,12 @@ function Toast() {
 
 /**
  * In-app reminders: fire `reminderLead` minutes before each planned block,
- * plus an 8:30 PM nudge if blocks are still open. Works while Stride is open
+ * plus an 8:30 PM nudge if blocks are still open. Works while the app is open
  * or backgrounded. Closed-app push needs a server and arrives in Phase 2.
  */
 function useReminders() {
   useEffect(() => {
+    if (isNative) return; // the Android app schedules these with the system instead
     const sent = new Set<string>(JSON.parse(sessionStorageSafe("stride-sent") ?? "[]"));
     const check = () => {
       const s = useStore.getState();

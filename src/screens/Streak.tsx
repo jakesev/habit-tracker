@@ -116,7 +116,7 @@ export function Streak() {
                       style={{
                         width: `calc(100% + ${GAP}px)`,
                         background: "var(--color-ember)",
-                        boxShadow: tier ? `0 0 ${6 + tier * 3}px rgb(255 106 43 / ${0.25 + tier * 0.08})` : undefined,
+                        boxShadow: tier ? `0 0 ${6 + tier * 3}px rgb(var(--ember-rgb) / ${0.25 + tier * 0.08})` : undefined,
                       }}
                     />
                   )}

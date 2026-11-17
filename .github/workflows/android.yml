@@ -1,0 +1,70 @@
+name: Android app
+
+# Builds the installable Android app (.apk) on every push and publishes it at a
+# fixed link: Releases → "Android app (latest)".
+on:
+  push:
+    paths-ignore:
+      - "**.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Test and build the web app
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - name: Copy it into the Android project
+        run: npx cap sync android
+
+      - name: Build the APK
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: 1.0.${{ github.run_number }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/routine-app.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: routine-app-${{ github.run_number }}
+          path: routine-app.apk
+
+      - name: Publish to the "android-latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete android-latest --yes --cleanup-tag || true
+          gh release create android-latest routine-app.apk \
+            --target "$GITHUB_SHA" \
+            --title "Android app (latest)" \
+            --notes "Build ${{ github.run_number }} from \`${GITHUB_REF_NAME}\` (${GITHUB_SHA::7}).
+
+          **Install on your phone:** tap \`routine-app.apk\` below, open the download, and allow installs from your browser if Android asks. Updates install over the top and keep your data." \
+            --latest

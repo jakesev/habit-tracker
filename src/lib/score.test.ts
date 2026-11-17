@@ -21,6 +21,9 @@ const settings: Settings = {
   sound: true,
   notifications: false,
   familyNight: 6,
+  identity: "ember",
+  homeTime: 1020,
+  bedTime: 1260,
 };
 
 let n = 0;
