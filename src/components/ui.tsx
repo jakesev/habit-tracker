@@ -114,7 +114,7 @@ export function Ring({
           strokeWidth={stroke}
           strokeLinecap="round"
           initial={{ pathLength: 0 }}
-          animate={{ pathLength: Math.max(0.0001, v * arc) }}
+          animate={{ pathLength: Math.max(0.0001, v * arc), opacity: v > 0.002 ? 1 : 0 }}
           transition={{ type: "spring", stiffness: 60, damping: 18, mass: 1 }}
           style={glow ? { filter: `drop-shadow(0 0 8px ${color})` } : undefined}
         />
