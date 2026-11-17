@@ -5,16 +5,23 @@ import { CATEGORY_COLOR, CountUp, Icon, Pressable, PrimaryButton, Ring } from ".
 import { useToday } from "../lib/hooks";
 import { completion, stayedHard } from "../lib/score";
 import { fmtDateLong, fmtDuration, fmtRange, fmtTime, nowMin } from "../lib/time";
-import type { DayBlock } from "../lib/types";
+import type { DayBlock, LogEntry } from "../lib/types";
+import { fmtLog } from "./Log";
 import { SKIP_OPTIONS, voice } from "../lib/voice";
 import { useStore } from "../store/store";
 import { useUI } from "../store/ui";
 import { completeBlock } from "./actions";
 
+/** Timers are for deep work. Shower, dinner, the dogs: just tick it. */
+export const usesTimer = (b: DayBlock) => b.category === "skill" || b.category === "reading";
+
 export function statusLabel(b: DayBlock): { text: string; tone: "good" | "mute" | "bad" | "live" } | null {
   switch (b.status) {
-    case "done":
-      return { text: b.focusedMinutes ? `Done · ${b.focusedMinutes}m focused` : "Done", tone: "good" };
+    case "done": {
+      const parts = [b.late ? `Done late · ${b.lateBy ?? 0}m` : b.focusedMinutes ? `Done · ${b.focusedMinutes}m focused` : "Done"];
+      if (b.challengeDone && b.challenge) parts.push(b.challenge);
+      return { text: parts.join(" · "), tone: b.late ? "mute" : "good" };
+    }
     case "partial":
       return { text: `Partly · ${b.focusedMinutes ?? 0} of ${b.duration} min`, tone: "good" };
     case "skipped": {
@@ -34,6 +41,7 @@ export function Today() {
   const focus = useStore((s) => s.focus);
   const tick = useStore((s) => s.tick);
   const undoHome = useStore((s) => s.undoHome);
+  const removeLog = useStore((s) => s.removeLog);
   const settings = useStore((s) => s.settings);
   const open = useUI((s) => s.open);
   const openHome = useUI((s) => s.openHome);
@@ -55,7 +63,13 @@ export function Today() {
   const allDone = blocks.some((b) => !isEvent(b)) && blocks.every((b) => isEvent(b) || b.status !== "planned");
 
   // Where the "now" divider sits, when we're between blocks.
-  const nowIndex = current ? -1 : blocks.findIndex((b) => b.start > t);
+  // Blocks and logged extras, in time order.
+  type Item = { kind: "block"; b: DayBlock; at: number } | { kind: "log"; log: LogEntry; at: number };
+  const timeline: Item[] = [
+    ...blocks.map((b) => ({ kind: "block" as const, b, at: b.start })),
+    ...(day?.logs ?? []).map((log) => ({ kind: "log" as const, log, at: log.at })),
+  ].sort((a, b) => a.at - b.at);
+  const nowIndex = current ? -1 : timeline.findIndex((x) => x.at > t);
 
   return (
     <div className="px-5 pt-[calc(18px+var(--safe-top))] pb-32">
@@ -145,7 +159,13 @@ export function Today() {
           )}
 
           <div className="mt-5 flex items-center gap-3">
-            {focus?.blockId === hero.id ? (
+            {!usesTimer(hero) && focus?.blockId !== hero.id ? (
+              <PrimaryButton onClick={() => completeBlock(today, hero.id)}>
+                <span className="inline-flex items-center gap-2">
+                  <Icon name="check" size={18} stroke={2.6} /> Done{hero.challenge ? ` · ${hero.challenge.toLowerCase()}?` : ""}
+                </span>
+              </PrimaryButton>
+            ) : focus?.blockId === hero.id ? (
               <PrimaryButton onClick={() => open("focusSetup", { date: today, id: hero.id })}>Back to the timer</PrimaryButton>
             ) : (
               <PrimaryButton onClick={() => open("focusSetup", { date: today, id: hero.id })}>
@@ -154,9 +174,11 @@ export function Today() {
                 </span>
               </PrimaryButton>
             )}
-            <div className="shrink-0">
-              <Check status={hero.status} onToggle={() => completeBlock(today, hero.id)} label={`Mark ${hero.title} done`} size={34} />
-            </div>
+            {usesTimer(hero) && (
+              <div className="shrink-0">
+                <Check status={hero.status} onToggle={() => completeBlock(today, hero.id)} label={`Mark ${hero.title} done`} size={34} />
+              </div>
+            )}
           </div>
         </motion.section>
       )}
@@ -165,7 +187,31 @@ export function Today() {
       <section className="mt-8">
         <div className="eyebrow mb-3 px-1">Today's plan</div>
         <ol className="relative">
-          {blocks.map((b, i) => {
+          {timeline.map((item, i) => {
+            if (item.kind === "log") {
+              const l = item.log;
+              return (
+                <Fragment key={l.id}>
+                  {i === nowIndex && <NowLine t={t} />}
+                  <li className="relative flex items-center gap-3">
+                    <div className="num w-[52px] shrink-0 text-right text-[12px] font-medium text-ember-hi">{fmtTime(l.at, { suffix: false })}</div>
+                    <div className="relative flex w-3 shrink-0 justify-center self-stretch">
+                      <div className="absolute top-0 bottom-0 w-px bg-white/[0.07]" />
+                      <div className="relative my-auto h-2 w-2 rotate-45 rounded-[2px] bg-ember" />
+                    </div>
+                    <div className="mb-2.5 flex min-w-0 flex-1 items-center gap-2 rounded-[14px] bg-ember/[0.07] py-2 pr-1 pl-3.5">
+                      <Icon name="bolt" size={14} className="shrink-0 text-ember" fill stroke={0} />
+                      <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{fmtLog(l)}</span>
+                      <span className="shrink-0 text-[11px] text-faint">logged</span>
+                      <Pressable aria-label={`Remove ${l.title}`} onClick={() => removeLog(today, l.id)} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-faint">
+                        <Icon name="x" size={14} />
+                      </Pressable>
+                    </div>
+                  </li>
+                </Fragment>
+              );
+            }
+            const b = item.b;
             const live = current?.id === b.id;
             const label = statusLabel(b);
             const dim = b.status === "missed" || (b.status === "skipped" && b.excused);
@@ -242,7 +288,7 @@ export function Today() {
               </Fragment>
             );
           })}
-          {nowIndex === -1 && !current && blocks.length > 0 && <NowLine t={t} />}
+          {nowIndex === -1 && !current && timeline.length > 0 && <NowLine t={t} />}
         </ol>
         {droppedTonight.length > 0 && (
           <div className="mt-4 rounded-2xl border border-dashed border-white/10 px-4 py-3">

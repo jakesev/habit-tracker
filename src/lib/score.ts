@@ -5,24 +5,37 @@ import type { Day, DayBlock, DateKey, Settings } from "./types";
 export const countable = (b: DayBlock) => !b.excused && b.category !== "event";
 
 /** 0–1 credit for a block: done = 1, partly done = share of the timer completed. */
+/** Grace after a block's planned end before it counts as late. */
+export const GRACE = 15;
+
 export function blockCredit(b: DayBlock): number {
-  if (b.status === "done") return 1;
+  const lateFactor = b.late ? 0.5 : 1;
+  if (b.status === "done") return lateFactor;
   if (b.status === "partial") {
     const f = (b.focusedMinutes ?? 0) / Math.max(1, b.duration);
-    return Math.max(0, Math.min(1, f));
+    return Math.max(0, Math.min(1, f)) * lateFactor;
   }
   return 0;
 }
 
 /** Average of the answered difficulty signals, 1–10. Defaults to 5 when none were answered. */
 export function difficulty(b: DayBlock): number {
+  // Doing the hard version (cold shower) counts as hard, whatever the ratings say.
+  if (b.challengeDone) return Math.max(8, answered(b) ?? 8);
+  return answered(b) ?? 5;
+}
+
+function answered(b: DayBlock): number | null {
   const vals: number[] = [];
   if (b.resistance != null) vals.push(b.resistance);
   if (b.startDifficulty != null) vals.push(b.startDifficulty);
   if (b.energy != null) vals.push(11 - b.energy);
-  if (!vals.length) return 5;
+  if (!vals.length) return null;
   return vals.reduce((a, v) => a + v, 0) / vals.length;
 }
+
+/** Logged extras: +2 each to the day's discipline score, at most +6. Never required. */
+export const extrasBonus = (day: Day | undefined) => Math.min(6, (day?.logs?.length ?? 0) * 2);
 
 /** "Stayed hard": done when it was hard (difficulty 7+). */
 export const stayedHard = (b: DayBlock) =>
@@ -54,7 +67,7 @@ export function dailyScore(day: Day | undefined): number | null {
     possible += w * 1.5;
     earned += w * (1 + difficulty(b) / 10) * blockCredit(b);
   }
-  return Math.min(100, (earned / possible) * 100);
+  return Math.min(100, (earned / possible) * 100 + extrasBonus(day));
 }
 
 export type DayState = "streak" | "rest" | "miss" | "empty" | "open";
@@ -269,4 +282,57 @@ export function currentStandard(days: Record<DateKey, Day>, settings: Settings, 
   const cur = STANDARDS[i];
   const next = STANDARDS[i + 1];
   return { ...cur, index: i, disciplineIndex: index, next: next ? { ...next, gap: Math.max(1, Math.ceil(next.from - index)) } : undefined };
+}
+
+/* ------------------------------------------------------------------ Timing: how far off the plan you are */
+
+export interface Timing {
+  done: number;
+  onTime: number;
+  late: number;
+  /** Average minutes late, over the late ones. */
+  avgLate: number;
+}
+
+/** Timing for one routine block (by template id), or all blocks, over the last `n` days. */
+export function timing(days: Record<DateKey, Day>, today: DateKey, templateId?: string, n = 14): Timing {
+  let done = 0;
+  let late = 0;
+  let lateSum = 0;
+  for (let i = 0; i < n; i++) {
+    const d = days[addDays(today, -i)];
+    if (!d) continue;
+    for (const b of d.blocks) {
+      if (b.category === "event" || (templateId && b.templateId !== templateId)) continue;
+      if (b.status !== "done" && b.status !== "partial") continue;
+      done++;
+      if (b.late) {
+        late++;
+        lateSum += b.lateBy ?? 0;
+      }
+    }
+  }
+  return { done, onTime: done - late, late, avgLate: late ? Math.round(lateSum / late) : 0 };
+}
+
+export interface Tip {
+  text: string;
+  templateId?: string;
+  /** Suggested new start time, for a one-tap "Move it". */
+  moveTo?: number;
+}
+
+/** One plain, rule-based tip from your timing. */
+export function timingTip(days: Record<DateKey, Day>, today: DateKey, templateId: string, title: string, start: number): Tip | null {
+  const t = timing(days, today, templateId, 10);
+  if (t.done >= 3 && t.late >= Math.ceil(t.done / 2)) {
+    const moveTo = Math.min(23 * 60, Math.round((start + t.avgLate) / 15) * 15);
+    return {
+      text: `${title} ran late ${t.late} of the last ${t.done} times, usually ${t.avgLate} min. Move it to match real life, or start the routine before it earlier.`,
+      templateId,
+      moveTo: moveTo !== start ? moveTo : undefined,
+    };
+  }
+  if (t.done >= 5 && t.late === 0) return { text: `${title}: on time ${t.done} of ${t.done}. That's the standard.`, templateId };
+  return null;
 }

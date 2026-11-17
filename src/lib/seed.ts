@@ -9,7 +9,8 @@ export const HOME_BLOCKS: TemplateBlock[] = [
   {
     id: "shower",
     title: "Shower",
-    subtitle: "Wash the workday off",
+    subtitle: "Cold. Wash the workday off.",
+    challenge: "Cold",
     category: "chore",
     days: WEEKDAYS,
     start: hm(17, 0),

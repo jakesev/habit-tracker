@@ -14,6 +14,7 @@ export function PlanMenu() {
     setTimeout(fn, 220);
   };
   const rows = [
+    { icon: "bolt", title: "Log it", sub: "Something you just did: 20 push-ups, a cold plunge", run: () => ui().openLog(true) },
     { icon: "plus", title: "Add a habit block", sub: "Something to do and tick off", run: () => ui().openEditor({ mode: "add", date: todayKey() }) },
     { icon: "today", title: "Add an event", sub: "Busy time: dentist, client, appointment", run: () => ui().openEditor({ mode: "add", date: todayKey(), event: true }) },
     ...(late

@@ -4,14 +4,14 @@ import { Check } from "../components/Check";
 import { CATEGORY_COLOR, CATEGORY_LABEL, GhostButton, Icon, Pressable, PrimaryButton, Scale, Segmented, Sheet, spring } from "../components/ui";
 import { haptic, sound } from "../lib/feedback";
 import { useAccent } from "../lib/identity";
-import { blockCredit, completion, currentStandard, dailyScore, difficulty, restPassesUsedInWeek, stayedHard } from "../lib/score";
-import { fmtDateLong, fmtDuration, fmtRange, todayKey, weekStart } from "../lib/time";
+import { blockCredit, completion, currentStandard, dailyScore, difficulty, restPassesUsedInWeek, stayedHard, timing, timingTip } from "../lib/score";
+import { fmtDateLong, fmtDuration, fmtRange, fmtTime, todayKey, weekStart } from "../lib/time";
 import type { DayBlock, SkipReason } from "../lib/types";
 import { SKIP_OPTIONS, voice } from "../lib/voice";
 import { blocksFor, isEditable, selectBlock, useStore } from "../store/store";
 import { useUI } from "../store/ui";
 import { completeBlock } from "./actions";
-import { statusLabel } from "./Today";
+import { statusLabel, usesTimer } from "./Today";
 
 /* ================================================================ Block detail */
 
@@ -85,7 +85,20 @@ function BlockBody({ date, b, onClose }: { date: string; b: DayBlock; onClose: (
       )}
 
       {/* main action */}
-      {editable && b.status === "planned" && isToday && !isEvent && (
+      {editable && b.status === "planned" && isToday && !isEvent && !usesTimer(b) && (
+        <PrimaryButton
+          className="mt-5"
+          onClick={() => {
+            onClose();
+            completeBlock(date, b.id);
+          }}
+        >
+          <span className="inline-flex items-center gap-2">
+            <Icon name="check" size={18} stroke={2.6} /> Done{b.challenge ? ` · ${b.challenge.toLowerCase()}?` : ""}
+          </span>
+        </PrimaryButton>
+      )}
+      {editable && b.status === "planned" && isToday && !isEvent && usesTimer(b) && (
         <PrimaryButton
           className="mt-5"
           onClick={() => {
@@ -115,6 +128,9 @@ function BlockBody({ date, b, onClose }: { date: string; b: DayBlock; onClose: (
           <p className="mt-3 text-[12px] text-faint">Corrections are logged and close at the end of tomorrow.</p>
         </div>
       )}
+
+      {/* timing: how far off the plan, and one tip */}
+      {!isEvent && b.templateId !== "once" && <TimingNote date={date} b={b} />}
 
       {/* checklist */}
       {b.checklist && b.checklist.length > 0 && (
@@ -294,9 +310,11 @@ export function CheckInSheet() {
   const [e, setE] = useState<number | null>(null);
   const [d, setD] = useState<number | null>(null);
   const [note, setNote] = useState("");
+  const [hard, setHard] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (ref && b) {
+      setHard(b.challengeDone ?? null);
       setR(b.resistance ?? null);
       setE(b.energy ?? null);
       setD(b.startDifficulty ?? null);
@@ -307,9 +325,9 @@ export function CheckInSheet() {
   const finish = (save: boolean) => {
     if (!ref || !b) return open("checkin", null);
     if (save) {
-      setAnswers(ref.date, ref.id, { resistance: r, energy: e, startDifficulty: d, note: note.trim() || b.note });
-      const hard = difficulty({ ...b, resistance: r, energy: e, startDifficulty: d }) >= 7;
-      if (hard && (b.status === "done" || b.status === "partial")) {
+      setAnswers(ref.date, ref.id, { resistance: r, energy: e, startDifficulty: d, note: note.trim() || b.note, challengeDone: hard ?? undefined });
+      const wasHard = difficulty({ ...b, resistance: r, energy: e, startDifficulty: d, challengeDone: hard ?? undefined }) >= 7;
+      if (wasHard && (b.status === "done" || b.status === "partial")) {
         haptic("hard");
         sound("hard");
         toast(voice.stayedHard.title, voice.stayedHard.line, "hard");
@@ -319,7 +337,7 @@ export function CheckInSheet() {
   };
 
   return (
-    <Sheet open={!!ref && !!b} onClose={() => finish(r != null || e != null || d != null || !!note)} label="Check-in">
+    <Sheet open={!!ref && !!b} onClose={() => finish(r != null || e != null || d != null || !!note || hard != null)} label="Check-in">
       {b && (
         <div>
           <div className="flex items-center justify-between">
@@ -334,6 +352,26 @@ export function CheckInSheet() {
           <p className="mt-1 text-[14px] text-faint">{voice.checkIn.sub}</p>
 
           <div className="mt-6 space-y-6">
+            {b.challenge && (
+              <div>
+                <div className="mb-3 text-[16px] font-medium">{b.challenge}?</div>
+                <div className="grid grid-cols-2 gap-2">
+                  {[true, false].map((v) => (
+                    <Pressable
+                      key={String(v)}
+                      scale={0.96}
+                      aria-pressed={hard === v}
+                      onClick={() => setHard(hard === v ? null : v)}
+                      className={`h-14 rounded-2xl text-[16px] font-semibold transition-colors ${
+                        hard === v ? (v ? "bg-ember text-black" : "bg-white/[0.14] text-ink") : "bg-white/[0.05] text-mute"
+                      }`}
+                    >
+                      {v ? `Yes, ${(b.challenge ?? "").toLowerCase()}` : "Not this time"}
+                    </Pressable>
+                  ))}
+                </div>
+              </div>
+            )}
             {timing === "after" && (
               <Q title={voice.checkIn.resistance.q}>
                 <Scale value={r} onChange={setR} lo={voice.checkIn.resistance.lo} hi={voice.checkIn.resistance.hi} />
@@ -559,5 +597,55 @@ function FutureDay({ date }: { date: string }) {
         </span>
       </PrimaryButton>
     </>
+  );
+}
+
+/** "On time 3 of 5 · usually 35 min late", plus a one-tap fix when a block keeps running late. */
+function TimingNote({ date, b }: { date: string; b: DayBlock }) {
+  const days = useStore((s) => s.days);
+  const template = useStore((s) => s.template);
+  const updateBlock = useStore((s) => s.updateBlock);
+  const toast = useUI((s) => s.showToast);
+  const today = todayKey();
+  const t = timing(days, today, b.templateId, 14);
+  const tpl = template.find((x) => x.id === b.templateId);
+  const tip = tpl ? timingTip(days, today, tpl.id, tpl.title, tpl.start) : null;
+  if (!t.done) return null;
+  return (
+    <section className="mt-6 rounded-2xl border border-line bg-white/[0.025] p-4">
+      <div className="flex items-center justify-between">
+        <div className="eyebrow">Timing · last 2 weeks</div>
+        <div className="num text-[13px] text-mute">
+          {t.onTime} of {t.done} on time
+        </div>
+      </div>
+      <div className="mt-2 flex h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+        <div className="h-full bg-good" style={{ width: `${(t.onTime / t.done) * 100}%` }} />
+        <div className="h-full bg-warn" style={{ width: `${(t.late / t.done) * 100}%` }} />
+      </div>
+      {t.late > 0 && <div className="num mt-2 text-[12px] text-faint">Late {t.late}× · usually {t.avgLate} min after the planned start</div>}
+      {tip && (
+        <div className="mt-3 flex items-start gap-2 text-[13px] text-mute">
+          <Icon name="sparkle" size={14} className="mt-0.5 shrink-0 text-ember" />
+          <span>{tip.text}</span>
+        </div>
+      )}
+      {tip?.moveTo != null && tpl && (
+        <GhostButton
+          className="mt-3 w-full"
+          onClick={() => {
+            updateBlock(
+              date,
+              b.id,
+              { title: tpl.title, date, start: tip.moveTo!, duration: tpl.duration, category: tpl.category, movable: tpl.type !== "fixed", repeat: tpl.days },
+              "every",
+            );
+            toast("Moved", `${tpl.title} now starts at ${fmtTime(tip.moveTo!)}, every week.`);
+          }}
+        >
+          Move it to {fmtTime(tip.moveTo)} every week
+        </GhostButton>
+      )}
+    </section>
   );
 }

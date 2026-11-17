@@ -2,12 +2,13 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { HOME_BLOCKS, seedTemplate } from "../lib/seed";
 import type { PlanResult } from "../lib/plan";
-import { currentStandard } from "../lib/score";
+import { currentStandard, GRACE } from "../lib/score";
 import { mergeBusy } from "../lib/gcal-map";
 import { addDays, diffDays, fromKey, nowMin, snapDuration, todayKey } from "../lib/time";
 import {
   EXCUSED_REASONS,
   type Category,
+  type LogEntry,
   type Day,
   type DayBlock,
   type DateKey,
@@ -41,6 +42,8 @@ export interface BlockInput {
   movable: boolean;
   /** Weekdays (0 = Sun) it repeats on, or null for just this day. */
   repeat: number[] | null;
+  /** The hard version, e.g. "Cold". */
+  challenge?: string;
 }
 export type Scope = "day" | "every";
 
@@ -58,7 +61,15 @@ export interface CloudState {
 }
 const DEFAULT_CLOUD: CloudState = { connected: false, write: true, read: true };
 
-export type Answers = Partial<Pick<DayBlock, "resistance" | "energy" | "startDifficulty" | "note">>;
+export type Answers = Partial<Pick<DayBlock, "resistance" | "energy" | "startDifficulty" | "note" | "challengeDone">>;
+
+/** Was a block done on time? Late = started more than 15 min after its planned start. */
+export function lateness(b: Pick<DayBlock, "start" | "duration">, doneAt: number, startedAt?: number) {
+  const began = startedAt ?? doneAt - b.duration;
+  const lateBy = Math.max(0, Math.round(began - b.start));
+  const late = startedAt != null ? lateBy > GRACE : doneAt > b.start + b.duration + GRACE;
+  return { late, lateBy: late ? lateBy : 0 };
+}
 
 interface State {
   firstDay: DateKey | null;
@@ -79,6 +90,10 @@ interface State {
 
   ensureDays: (now?: Date) => void;
   tick: (date: DateKey, id: string) => void;
+  /** Mark done at a given time (minutes). Late if after the time + grace: half credit. */
+  markDone: (date: DateKey, id: string, at: number) => void;
+  addLog: (date: DateKey, e: Omit<LogEntry, "id">) => void;
+  removeLog: (date: DateKey, id: string) => void;
   setAnswers: (date: DateKey, id: string, a: Answers) => void;
   setNote: (date: DateKey, id: string, note: string) => void;
   skip: (date: DateKey, id: string, reason: SkipReason) => void;
@@ -122,6 +137,7 @@ export function blocksFor(date: DateKey, template: TemplateBlock[], settings: Se
       minDuration: snapDuration(t.minDuration),
       checklist: t.checklist,
       homeAnchor: t.homeAnchor,
+      challenge: t.challenge,
       status: "planned",
       reminderLead: settings.defaultReminderLead,
     }));
@@ -141,6 +157,7 @@ function instance(t: TemplateBlock, settings: Settings): DayBlock {
     minDuration: snapDuration(t.minDuration),
     checklist: t.checklist,
     homeAnchor: t.homeAnchor,
+    challenge: t.challenge,
     status: "planned",
     reminderLead: settings.defaultReminderLead,
   };
@@ -156,6 +173,7 @@ function blockFields(i: BlockInput) {
     category: i.category,
     type: (event || !i.movable ? "fixed" : "flexible") as TemplateBlock["type"],
     minDuration: event || !i.movable ? duration : 15,
+    challenge: event ? undefined : i.challenge?.trim() || undefined,
   };
 }
 
@@ -325,7 +343,8 @@ export const useStore = create<State>()(
             const blocks = d.blocks.map((b) => {
               const running = s.focus?.blockId === b.id;
               // Shower and dinner wait for "I'm home"; if it never comes they close at bed time.
-              const end = b.homeAnchor && d.homeAt == null && k === today ? s.settings.bedTime : b.start + b.duration;
+              // 15 minutes of grace after the planned end before it's Not done.
+              const end = b.homeAnchor && d.homeAt == null && k === today ? s.settings.bedTime : b.start + b.duration + GRACE;
               if (b.category !== "event" && b.status === "planned" && !running && end <= cutoff) {
                 dirty = true;
                 return { ...b, status: "missed" as const };
@@ -344,14 +363,39 @@ export const useStore = create<State>()(
           patch(date, id, (b) => {
             const doneish = b.status === "done" || b.status === "partial";
             const to = doneish ? (date === todayKey() ? "planned" : "missed") : "done";
+            const at = Math.floor(nowMin());
             const next: DayBlock = {
               ...b,
               status: to,
               completedAt: to === "done" ? Date.now() : undefined,
+              doneAt: to === "done" ? at : undefined,
+              ...(to === "done" && date === todayKey() ? lateness(b, at) : { late: undefined, lateBy: undefined }),
+              challengeDone: to === "done" ? b.challengeDone : undefined,
               skipReason: undefined,
               excused: undefined,
             };
             return log(next, "status", b.status, to, date);
+          }),
+
+        markDone: (date, id, at) =>
+          patch(date, id, (b) => {
+            const { late, lateBy } = lateness(b, at);
+            const next: DayBlock = { ...b, status: "done", completedAt: Date.now(), doneAt: at, late, lateBy, skipReason: undefined, excused: undefined };
+            return log(next, "status", b.status, late ? `done late (${lateBy}m)` : "done on time", date);
+          }),
+
+        addLog: (date, e) =>
+          set((s) => {
+            const d = s.days[date];
+            if (!d) return s;
+            const logs = [...(d.logs ?? []), { ...e, id: uid() }].sort((a, b) => a.at - b.at);
+            return { days: { ...s.days, [date]: { ...d, logs } } };
+          }),
+        removeLog: (date, id) =>
+          set((s) => {
+            const d = s.days[date];
+            if (!d) return s;
+            return { days: { ...s.days, [date]: { ...d, logs: (d.logs ?? []).filter((l) => l.id !== id) } } };
           }),
 
         setAnswers: (date, id, a) =>
@@ -423,7 +467,9 @@ export const useStore = create<State>()(
           const ms = focusedMs ?? f.totalMs - remaining;
           const mins = Math.round(ms / 60_000);
           patch(f.date, f.blockId, (b) => {
-            const base = { ...b, focusedMinutes: (b.focusedMinutes ?? 0) + mins, timerCompleted: remaining <= 1000 };
+            const at = Math.floor(nowMin());
+            const started = b.actualStart ? new Date(b.actualStart).getHours() * 60 + new Date(b.actualStart).getMinutes() : undefined;
+            const base = { ...b, focusedMinutes: (b.focusedMinutes ?? 0) + mins, timerCompleted: remaining <= 1000, doneAt: at, ...lateness(b, at, started) };
             if (outcome === "done") return { ...base, status: "done", completedAt: Date.now() };
             if (outcome === "partial") return { ...base, status: "partial", completedAt: Date.now() };
             return { ...base, status: "skipped", skipReason: "chose-else", excused: false };
@@ -504,7 +550,7 @@ export const useStore = create<State>()(
     {
       name: "stride-routine-v1",
       storage: safeStorage,
-      version: 3,
+      version: 4,
       migrate: (persisted, from) => {
         const p = persisted as { template?: { id: string }[]; settings?: object; days?: Record<string, { date: string; blocks: { templateId: string }[] }> };
         if (from < 2) {
@@ -533,6 +579,14 @@ export const useStore = create<State>()(
             }));
             d.blocks = ([...add, ...d.blocks] as unknown as { start: number }[]).sort((a, b) => a.start - b.start) as unknown as typeof d.blocks;
           }
+        }
+        if (from < 4) {
+          // v4: the shower's hard version is a cold shower.
+          type T = { id: string; challenge?: string; subtitle?: string };
+          p.template = (p.template as T[] | undefined)?.map((t) => (t.id === "shower" && !t.challenge ? { ...t, challenge: "Cold", subtitle: "Cold. Wash the workday off." } : t));
+          for (const d of Object.values(p.days ?? {}))
+            for (const b of d.blocks as unknown as { templateId: string; challenge?: string; status: string }[])
+              if (b.templateId === "shower" && b.status === "planned") b.challenge = "Cold";
         }
         if (from < 3) {
           // v3: the four look-based names became Shugyo and Vow.

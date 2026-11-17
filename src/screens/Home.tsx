@@ -5,6 +5,8 @@ import { useToday } from "../lib/hooks";
 import {
   completion,
   currentStandard,
+  timing,
+  timingTip,
   currentStreak,
   dayState,
   disciplineIndex,
@@ -54,6 +56,16 @@ export function Home() {
   const next = days[today]?.blocks.find((b) => b.category !== "event" && !b.dropped && b.status === "planned" && b.start + b.duration > t);
   const nextSteps = [3, 7, 14, 30, 60].find((s) => s > streak);
   const standard = currentStandard(days, settings, today, firstDay);
+  const onTime = timing(days, today, undefined, 7);
+  const ws = weekStart(today);
+  let extras = 0;
+  for (let i = 0; i < 7; i++) extras += days[addDays(ws, i)]?.logs?.length ?? 0;
+  // A timing tip for something in today's plan beats the generic line.
+  const tip =
+    (days[today]?.blocks ?? [])
+      .filter((b) => b.category !== "event" && b.templateId !== "once" && b.templateId !== "gcal")
+      .map((b) => timingTip(days, today, b.templateId, b.title, b.origStart ?? b.start))
+      .find((x) => x && x.moveTo != null) ?? null;
 
   return (
     <div className="px-5 pt-[calc(18px+var(--safe-top))] pb-32">
@@ -143,9 +155,31 @@ export function Home() {
         </div>
       </motion.section>
 
+      {/* Timing and extras */}
+      <motion.section {...stagger(5)} className="mt-3 grid grid-cols-2 gap-3">
+        <div className="card px-4 py-4">
+          <div className="eyebrow">On time · 7 days</div>
+          <div className="mt-2 flex items-baseline gap-0.5">
+            <CountUp value={onTime.done ? (onTime.onTime / onTime.done) * 100 : 0} className="text-[30px] leading-none font-semibold" />
+            <span className="text-[14px] text-mute">%</span>
+          </div>
+          <div className="num mt-1 text-[12px] text-faint">{onTime.late ? `late ${onTime.late}× · ~${onTime.avgLate} min` : onTime.done ? "never late" : "no data yet"}</div>
+        </div>
+        <Pressable scale={0.98} onClick={() => useUI.getState().openLog(true)} className="card px-4 py-4 text-left">
+          <div className="eyebrow">Extras · week</div>
+          <div className="mt-2 flex items-baseline gap-1">
+            <CountUp value={extras} className="text-[30px] leading-none font-semibold" />
+            <span className="text-[14px] text-mute">logged</span>
+          </div>
+          <div className="mt-1 flex items-center gap-1 text-[12px] text-ember-hi">
+            <Icon name="plus" size={12} stroke={2.6} /> Log one
+          </div>
+        </Pressable>
+      </motion.section>
+
       {/* Next block */}
       {next && (
-        <motion.section {...stagger(5)} className="card mt-3 flex items-center gap-4 py-3 pr-3 pl-4">
+        <motion.section {...stagger(6)} className="card mt-3 flex items-center gap-4 py-3 pr-3 pl-4">
           <div className="min-w-0 flex-1">
             <div className="eyebrow">{next.start <= t ? "Now" : "Next"}</div>
             <div className="mt-1 truncate text-[17px] font-medium">{next.title}</div>
@@ -161,9 +195,9 @@ export function Home() {
       )}
 
       {/* Smart line */}
-      <motion.p {...stagger(6)} className="mt-6 px-1 text-[14px] leading-relaxed text-mute">
+      <motion.p {...stagger(7)} className="mt-6 px-1 text-[14px] leading-relaxed text-mute">
         <Icon name="sparkle" size={14} className="mr-1.5 -mt-0.5 inline text-ember" />
-        {smartLine(days, today)}
+        {tip?.text ?? smartLine(days, today)}
       </motion.p>
     </div>
   );

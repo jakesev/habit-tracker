@@ -10,6 +10,8 @@ import {
   glowTier,
   longestStreak,
   stayedHard,
+  timing,
+  timingTip,
 } from "./score";
 import type { Day, DayBlock, Settings } from "./types";
 import { addDays } from "./time";
@@ -174,5 +176,38 @@ describe("standards rise with your level", () => {
     expect(s.level).toBe("Elite");
     expect(s.threshold).toBe(100);
     expect(s.next).toBeUndefined();
+  });
+});
+
+describe("late, hard and extras", () => {
+  it("done late is half credit", () => {
+    expect(completion(day("x", [block({ status: "done", late: true, lateBy: 40 })]))).toBe(50);
+    expect(dailyScore(day("x", [block({ status: "done", late: true })]))).toBe(50);
+  });
+
+  it("doing the hard version counts as Stayed hard", () => {
+    const b = block({ status: "done", challenge: "Cold", challengeDone: true });
+    expect(difficulty(b)).toBeGreaterThanOrEqual(8);
+    expect(stayedHard(b)).toBe(true);
+  });
+
+  it("logged extras add a small bonus, capped", () => {
+    const logs = Array.from({ length: 5 }, (_, i) => ({ id: `l${i}`, title: "Push-ups", count: 20, unit: "reps", at: 400 + i }));
+    expect(dailyScore(day("x", [block({ status: "done" }), block({ status: "missed" })], { logs }))).toBe(56);
+    // and never touch completion
+    expect(completion(day("x", [block({ status: "missed" })], { logs }))).toBe(0);
+  });
+
+  it("timing counts on-time vs late and the average lateness", () => {
+    const today = "2026-11-17";
+    const days: Record<string, Day> = {};
+    for (let i = 0; i < 4; i++) {
+      const k = addDays(today, -i);
+      days[k] = day(k, [block({ templateId: "shower", status: "done", late: i < 3, lateBy: i < 3 ? 30 + i * 10 : 0 })]);
+    }
+    const t = timing(days, today, "shower");
+    expect(t).toEqual({ done: 4, onTime: 1, late: 3, avgLate: 40 });
+    const tip = timingTip(days, today, "shower", "Shower", 17 * 60);
+    expect(tip?.moveTo).toBe(17 * 60 + 45);
   });
 });

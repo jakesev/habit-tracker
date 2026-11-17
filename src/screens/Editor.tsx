@@ -54,6 +54,7 @@ function EditorBody({ ed, onClose }: { ed: EditorRef; onClose: () => void }) {
   const [start, setStart] = useState(() => editing?.start ?? Math.min(20 * 60 + 45, Math.ceil((ed.date === today ? nowMin() + 1 : 18 * 60) / STEP) * STEP));
   const [duration, setDuration] = useState(editing?.duration ?? (isEvent ? 60 : 30));
   const [movable, setMovable] = useState(editing ? editing.type !== "fixed" : true);
+  const [challenge, setChallenge] = useState(editing?.challenge ?? "");
   const [weekly, setWeekly] = useState(!!tpl);
   const [repeat, setRepeat] = useState<number[]>(tpl?.days ?? [fromKey(ed.date).getDay()]);
   const [scope, setScope] = useState<Scope>("day");
@@ -79,6 +80,7 @@ function EditorBody({ ed, onClose }: { ed: EditorRef; onClose: () => void }) {
     category: isEvent ? "event" : category,
     movable: isEvent ? false : movable,
     repeat: weekly && repeat.length ? [...repeat].sort() : null,
+    challenge,
   };
   const canSave = title.trim().length > 0 && start + duration <= 24 * 60;
 
@@ -239,7 +241,23 @@ function EditorBody({ ed, onClose }: { ed: EditorRef; onClose: () => void }) {
       </section>
 
       {!isEvent && (
-        <div className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-line px-4 py-3">
+        <div className="mt-4 rounded-2xl border border-line px-4 py-3">
+          <label htmlFor="block-challenge" className="text-[15px] font-medium">
+            Hard version <span className="text-faint">(optional)</span>
+          </label>
+          <div className="text-[12px] text-faint">Asked when you tick it. Doing it counts as Stayed hard.</div>
+          <input
+            id="block-challenge"
+            value={challenge}
+            onChange={(e) => setChallenge(e.target.value)}
+            placeholder="Cold, no phone, fasted…"
+            className="mt-2 h-11 w-full rounded-xl border border-line bg-white/[0.04] px-3 text-[15px] text-ink placeholder:text-faint focus:border-ember/50 focus:outline-none"
+          />
+        </div>
+      )}
+
+      {!isEvent && (
+        <div className="mt-3 flex items-center justify-between gap-4 rounded-2xl border border-line px-4 py-3">
           <div className="min-w-0">
             <div className="text-[15px] font-medium">Can move if the day changes</div>
             <div className="text-[12px] text-faint">Off = it stays at this time, like the dogs.</div>

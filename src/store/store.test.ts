@@ -80,3 +80,34 @@ describe("editing", () => {
     expect(day(addDays(today(), 1)).blocks.some((b) => b.templateId === "summary")).toBe(false);
   });
 });
+
+describe("on time vs late", () => {
+  it("ticking within the time + 15 min grace is on time", () => {
+    vi.setSystemTime(new Date("2026-11-17T18:50:00"));
+    const w = day().blocks.find((b) => b.templateId === "writing")!; // 6:15–6:45
+    useStore.getState().tick(today(), w.id);
+    const b = day().blocks.find((x) => x.id === w.id)!;
+    expect(b.status).toBe("done");
+    expect(b.late).toBe(false);
+  });
+
+  it("marking done after the grace is late, with minutes off the planned start", () => {
+    const sh = day().blocks.find((b) => b.templateId === "shower")!; // 5:00–5:15
+    useStore.getState().markDone(today(), sh.id, hm(18, 25));
+    const b = day().blocks.find((x) => x.id === sh.id)!;
+    expect(b.late).toBe(true);
+    expect(b.lateBy).toBe(70); // started ~6:10 for a 5:00 plan
+  });
+
+  it("forgot to tick: done at the planned end is on time", () => {
+    const sh = day().blocks.find((b) => b.templateId === "shower")!;
+    useStore.getState().markDone(today(), sh.id, sh.start + sh.duration);
+    expect(day().blocks.find((x) => x.id === sh.id)!.late).toBe(false);
+  });
+
+  it("logs land on the day in time order", () => {
+    useStore.getState().addLog(today(), { title: "Push-ups", count: 20, unit: "reps", at: hm(6, 42) });
+    useStore.getState().addLog(today(), { title: "Cold plunge", at: hm(5, 30) });
+    expect(day().logs!.map((l) => l.title)).toEqual(["Cold plunge", "Push-ups"]);
+  });
+});

@@ -12,6 +12,8 @@ interface UI {
   block: Ref | null; // block detail sheet
   skip: Ref | null; // skip reason sheet
   checkin: Ref | null; // post-task check-in
+  late: Ref | null; // "When did you do it?" after the grace window
+  log: boolean; // Log it sheet
   focusSetup: Ref | null; // focus timer, before start
   day: DateKey | null; // day detail from calendar
   home: boolean; // "I'm home" re-plan sheet
@@ -20,7 +22,8 @@ interface UI {
   toast: { id: number; title: string; line?: string; tone: "hard" | "plain" } | null;
 
   go: (t: Tab) => void;
-  open: (k: "block" | "skip" | "checkin" | "focusSetup", r: Ref | null) => void;
+  open: (k: "block" | "skip" | "checkin" | "focusSetup" | "late", r: Ref | null) => void;
+  openLog: (v: boolean) => void;
   openDay: (d: DateKey | null) => void;
   openHome: (v: boolean) => void;
   openMenu: (v: boolean) => void;
@@ -34,6 +37,8 @@ export const useUI = create<UI>((set, get) => ({
   block: null,
   skip: null,
   checkin: null,
+  late: null,
+  log: false,
   focusSetup: null,
   day: null,
   home: false,
@@ -47,6 +52,7 @@ export const useUI = create<UI>((set, get) => ({
   },
   open: (k, r) => set({ [k]: r } as Partial<UI>),
   openDay: (d) => set({ day: d }),
+  openLog: (v) => set({ log: v }),
   openHome: (v) => set({ home: v }),
   openMenu: (v) => set({ menu: v }),
   openEditor: (v) => set({ editor: v }),

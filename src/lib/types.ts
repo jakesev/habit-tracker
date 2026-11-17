@@ -41,6 +41,8 @@ export interface TemplateBlock {
   checklist?: string[];
   /** Placed the moment you get home (shower, dinner), in template order. */
   homeAnchor?: boolean;
+  /** The hard version of this block, e.g. "Cold" for the shower. */
+  challenge?: string;
 }
 
 export interface Correction {
@@ -63,6 +65,15 @@ export interface DayBlock {
   minDuration: Min;
   checklist?: string[];
   homeAnchor?: boolean;
+  challenge?: string;
+  /** Did the hard version (e.g. the shower was cold). */
+  challengeDone?: boolean;
+  /** Done after its time + 15 min grace: half credit. */
+  late?: boolean;
+  /** Minutes after the planned end it was done (when late). */
+  lateBy?: number;
+  /** When it was actually done, minutes since midnight. */
+  doneAt?: number;
   /** The template's time and length, kept when a re-plan moves or shrinks the block. */
   origStart?: Min;
   origDuration?: Min;
@@ -106,6 +117,17 @@ export interface Day {
   beforeHome?: DayBlock[];
   /** Share of the plan (%) this day needed to count. Set from your level when the day began, then frozen. */
   standard?: number;
+  /** Things you did and logged on the fly (20 push-ups at 6:42am). */
+  logs?: LogEntry[];
+}
+
+export interface LogEntry {
+  id: string;
+  title: string;
+  count?: number;
+  unit?: string;
+  /** Minutes since midnight. */
+  at: number;
 }
 
 export type QuestionTiming = "after" | "before";
