@@ -190,23 +190,6 @@ export function You() {
         </div>
       </section>
 
-      <Group title="Check-in">
-        <div className="px-4 py-4">
-          <div className="text-[15px] font-medium">Ask “How loud was the excuse?”</div>
-          <div className="mt-3">
-            <Segmented
-              id="timing"
-              value={settings.questionTiming}
-              onChange={(v) => update({ questionTiming: v })}
-              options={[
-                { value: "before", label: "Before I start" },
-                { value: "after", label: "After I finish" },
-              ]}
-            />
-          </div>
-        </div>
-      </Group>
-
       <Group title="Reminders">
         <Row label="Notifications" hint={isNative ? "Before each block, even when the app is closed." : notifSupported ? "While the app is open or in the background." : "Add to home screen to enable."}>
           <Toggle label="Notifications" on={settings.notifications} onChange={enableNotifications} />

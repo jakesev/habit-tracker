@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Check } from "../components/Check";
-import { CATEGORY_COLOR, CATEGORY_LABEL, GhostButton, Icon, Pressable, PrimaryButton, Scale, Sheet, spring } from "../components/ui";
+import { CATEGORY_COLOR, CATEGORY_LABEL, GhostButton, Icon, Pressable, PrimaryButton, Sheet, spring } from "../components/ui";
 import { haptic, sound } from "../lib/feedback";
 import { useAccent } from "../lib/identity";
 import { blockCredit, completion, currentStandard, dailyScore, difficulty, restPassesUsedInWeek, stayedHard, timing, timingTip } from "../lib/score";
@@ -177,18 +177,10 @@ function BlockBody({ date, b, onClose }: { date: string; b: DayBlock; onClose: (
       </section>
 
       {/* ratings, if given */}
-      {(b.resistance != null || b.energy != null || b.startDifficulty != null) && (
-        <section className="mt-6 grid grid-cols-3 gap-2">
-          {[
-            ["Excuse", b.resistance],
-            ["Tank", b.energy],
-            ["Getting moving", b.startDifficulty],
-          ].map(([k, v]) => (
-            <div key={k as string} className="rounded-2xl border border-line bg-white/[0.03] px-3 py-3 text-center">
-              <div className="num text-[22px] font-semibold">{v ?? "–"}</div>
-              <div className="mt-0.5 text-[11px] text-faint">{k}</div>
-            </div>
-          ))}
+      {feelLabel(b) && (
+        <section className="mt-6 flex items-center gap-2 rounded-2xl border border-line bg-white/[0.03] px-4 py-3">
+          <span className="text-[13px] text-faint">Felt</span>
+          <span className={`text-[15px] font-semibold ${(b.resistance ?? 0) > 7 ? "text-ember-hi" : ""}`}>{feelLabel(b)}</span>
         </section>
       )}
 
@@ -295,112 +287,107 @@ export function SkipSheet() {
 
 /* ================================================================ Post-task check-in */
 
+/** One plain question. Doing it when you didn't feel like it is what earns extra credit. */
+export const FEELS = [
+  { id: "easy", label: "Easy", hint: "Wanted to do it", value: 3 },
+  { id: "push", label: "Pushed through", hint: "Didn't feel like it. Did it anyway.", value: 6 },
+  { id: "hard", label: "Hard. Did it anyway.", hint: "Everything said quit.", value: 9 },
+] as const;
+
+/** "Pushed through" etc. for a block that was answered. */
+export function feelLabel(b: Pick<DayBlock, "resistance">): string | null {
+  if (b.resistance == null) return null;
+  return b.resistance <= 4 ? "Easy" : b.resistance <= 7 ? "Pushed through" : "Hard, did it anyway";
+}
+
 export function CheckInSheet() {
   const ref = useUI((s) => s.checkin);
   const open = useUI((s) => s.open);
   const toast = useUI((s) => s.showToast);
   const b = useStore((s) => (ref ? selectBlock(s, ref.date, ref.id) : undefined));
   const setAnswers = useStore((s) => s.setAnswers);
-  const timing = useStore((s) => s.settings.questionTiming);
-  const [r, setR] = useState<number | null>(null);
-  const [e, setE] = useState<number | null>(null);
-  const [d, setD] = useState<number | null>(null);
   const [note, setNote] = useState("");
   const [hard, setHard] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (ref && b) {
       setHard(b.challengeDone ?? null);
-      setR(b.resistance ?? null);
-      setE(b.energy ?? null);
-      setD(b.startDifficulty ?? null);
       setNote(b.note ?? "");
     }
   }, [ref?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const finish = (save: boolean) => {
+  const save = (feel: number | null) => {
     if (!ref || !b) return open("checkin", null);
-    if (save) {
-      setAnswers(ref.date, ref.id, { resistance: r, energy: e, startDifficulty: d, note: note.trim() || b.note, challengeDone: hard ?? undefined });
-      const wasHard = difficulty({ ...b, resistance: r, energy: e, startDifficulty: d, challengeDone: hard ?? undefined }) >= 7;
-      if (wasHard && (b.status === "done" || b.status === "partial")) {
-        haptic("hard");
-        sound("hard");
-        toast(voice.stayedHard.title, voice.stayedHard.line, "hard");
-      }
+    const answers = { resistance: feel, energy: null, startDifficulty: null, note: note.trim() || b.note, challengeDone: hard ?? undefined };
+    setAnswers(ref.date, ref.id, answers);
+    if (difficulty({ ...b, ...answers }) >= 7 && (b.status === "done" || b.status === "partial")) {
+      haptic("hard");
+      sound("hard");
+      toast(voice.stayedHard.title, voice.stayedHard.line, "hard");
     }
     open("checkin", null);
   };
 
   return (
-    <Sheet open={!!ref && !!b} onClose={() => finish(r != null || e != null || d != null || !!note || hard != null)} label="Check-in">
+    <Sheet open={!!ref && !!b} onClose={() => (hard != null || note ? save(b?.resistance ?? null) : open("checkin", null))} label="Check-in">
       {b && (
-        <div>
+        <div className="pb-2">
           <div className="flex items-center justify-between">
-            <div>
-              <div className="eyebrow">{b.title} · done</div>
-              <h2 className="mt-1.5 text-[24px] font-semibold tracking-[-0.02em]">{voice.checkIn.title}</h2>
-            </div>
-            <Pressable onClick={() => finish(false)} className="h-10 rounded-full px-4 text-[14px] font-medium text-mute">
+            <div className="eyebrow">{b.title} · done</div>
+            <Pressable onClick={() => (hard != null ? save(null) : open("checkin", null))} className="h-10 rounded-full px-4 text-[14px] font-medium text-mute">
               Skip
             </Pressable>
           </div>
-          <p className="mt-1 text-[14px] text-faint">{voice.checkIn.sub}</p>
 
-          <div className="mt-6 space-y-6">
-            {b.challenge && (
-              <div>
-                <div className="mb-3 text-[16px] font-medium">{b.challenge}?</div>
-                <div className="grid grid-cols-2 gap-2">
-                  {[true, false].map((v) => (
-                    <Pressable
-                      key={String(v)}
-                      scale={0.96}
-                      aria-pressed={hard === v}
-                      onClick={() => setHard(hard === v ? null : v)}
-                      className={`h-14 rounded-2xl text-[16px] font-semibold transition-colors ${
-                        hard === v ? (v ? "bg-ember text-black" : "bg-white/[0.14] text-ink") : "bg-white/[0.05] text-mute"
-                      }`}
-                    >
-                      {v ? `Yes, ${(b.challenge ?? "").toLowerCase()}` : "Not this time"}
-                    </Pressable>
-                  ))}
-                </div>
+          {b.challenge && (
+            <div className="mt-2">
+              <h2 className="text-[22px] font-semibold tracking-[-0.02em]">{b.challenge}?</h2>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {[true, false].map((v) => (
+                  <Pressable
+                    key={String(v)}
+                    scale={0.96}
+                    aria-pressed={hard === v}
+                    onClick={() => setHard(hard === v ? null : v)}
+                    className={`h-14 rounded-2xl text-[16px] font-semibold transition-colors ${
+                      hard === v ? (v ? "bg-ember text-black" : "bg-white/[0.14] text-ink") : "bg-white/[0.05] text-mute"
+                    }`}
+                  >
+                    {v ? `Yes, ${(b.challenge ?? "").toLowerCase()}` : "Not this time"}
+                  </Pressable>
+                ))}
               </div>
-            )}
-            {timing === "after" && (
-              <Q title={voice.checkIn.resistance.q}>
-                <Scale value={r} onChange={setR} lo={voice.checkIn.resistance.lo} hi={voice.checkIn.resistance.hi} />
-              </Q>
-            )}
-            <Q title={voice.checkIn.energy.q}>
-              <Scale value={e} onChange={setE} lo={voice.checkIn.energy.lo} hi={voice.checkIn.energy.hi} invert />
-            </Q>
-            <Q title={voice.checkIn.start.q}>
-              <Scale value={d} onChange={setD} lo={voice.checkIn.start.lo} hi={voice.checkIn.start.hi} />
-            </Q>
-            <input
-              value={note}
-              onChange={(ev) => setNote(ev.target.value)}
-              placeholder="Optional note"
-              className="h-12 w-full rounded-2xl border border-line bg-white/[0.04] px-4 text-[15px] placeholder:text-faint focus:border-ember/50 focus:outline-none"
-            />
+            </div>
+          )}
+
+          <h2 className={`${b.challenge ? "mt-6" : "mt-2"} text-[22px] font-semibold tracking-[-0.02em]`}>How was it?</h2>
+          <p className="mt-1 text-[13px] text-faint">One tap. Doing it when you didn't feel like it counts for more.</p>
+          <div className="mt-4 grid gap-2">
+            {FEELS.map((f) => (
+              <Pressable
+                key={f.id}
+                scale={0.98}
+                onClick={() => save(f.value)}
+                className={`flex items-center gap-3 rounded-2xl border p-4 text-left ${f.id === "hard" ? "border-ember/40 bg-ember/[0.08]" : "border-line bg-white/[0.04]"}`}
+              >
+                <span className="min-w-0 flex-1">
+                  <span className={`block text-[16px] font-semibold ${f.id === "hard" ? "text-ember-hi" : ""}`}>{f.label}</span>
+                  <span className="block text-[13px] text-faint">{f.hint}</span>
+                </span>
+                {f.id === "hard" && <span className="shrink-0 rounded-full bg-ember/15 px-2 py-0.5 text-[10px] font-semibold tracking-[0.06em] text-ember-hi uppercase">Stayed hard</span>}
+              </Pressable>
+            ))}
           </div>
-          <PrimaryButton className="mt-6" onClick={() => finish(true)}>
-            Log it
-          </PrimaryButton>
+
+          <input
+            value={note}
+            onChange={(ev) => setNote(ev.target.value)}
+            placeholder="Add a note first (optional)"
+            className="mt-4 h-12 w-full rounded-2xl border border-line bg-white/[0.04] px-4 text-[15px] placeholder:text-faint focus:border-ember/50 focus:outline-none"
+          />
         </div>
       )}
     </Sheet>
-  );
-}
-
-function Q({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="mb-3 text-[16px] font-medium tracking-[-0.01em]">{title}</div>
-      {children}
-    </div>
   );
 }
 
@@ -484,7 +471,7 @@ export function DaySheet() {
                     <div className="truncate text-[12px] text-faint">
                       {fmtRange(b.start, b.duration)}
                       {l ? ` · ${l.text}` : ""}
-                      {b.resistance != null ? ` · excuse ${b.resistance}/10` : ""}
+                      {feelLabel(b) ? ` · ${feelLabel(b)!.toLowerCase()}` : ""}
                       {b.note ? ` · “${b.note}”` : ""}
                     </div>
                   </div>

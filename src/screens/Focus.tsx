@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import { GhostButton, Icon, Pressable, PrimaryButton, Scale, spring } from "../components/ui";
+import { GhostButton, Icon, Pressable, PrimaryButton, spring } from "../components/ui";
 import { haptic, notify, primeAudio, sound } from "../lib/feedback";
 import { cancelOnce, hideFocusNotification, isNative, keepAwake, scheduleOnce, showFocusNotification } from "../lib/native";
 import { themeOf } from "../lib/identity";
@@ -97,9 +97,6 @@ function Setup({ date, id, title, subtitle, duration }: { date: string; id: stri
   const isToday = date === todayKey();
   const late = !!block && isToday && now > block.start + 1;
   const [mins, setMins] = useState(() => (block ? defaultFocusMinutes(block.start, block.duration, now, transition, isToday) : duration));
-  const timing = useStore((s) => s.settings.questionTiming);
-  const resistance = useStore((s) => selectBlock(s, date, id)?.resistance ?? null);
-  const setAnswers = useStore((s) => s.setAnswers);
   const start = useStore((s) => s.startFocus);
 
   return (
@@ -148,12 +145,6 @@ function Setup({ date, id, title, subtitle, duration }: { date: string; id: stri
         ))}
       </div>
 
-      {timing === "before" && (
-        <div className="mt-10">
-          <div className="mb-3 text-[16px] font-medium">{voice.checkIn.resistance.q}</div>
-          <Scale value={resistance} onChange={(v) => setAnswers(date, id, { resistance: v })} lo={voice.checkIn.resistance.lo} hi={voice.checkIn.resistance.hi} />
-        </div>
-      )}
 
       <div className="mt-auto pt-10">
         <p className="mb-1 text-center text-[13px] text-faint">
