@@ -24,6 +24,7 @@ import type { Day, DateKey } from "../lib/types";
 import { useStore } from "../store/store";
 import { useUI } from "../store/ui";
 import { Logo } from "../components/Logo";
+import { StepUpCard } from "./Program";
 import { APP } from "../lib/identity";
 
 const stagger = (i: number) => ({
@@ -110,6 +111,8 @@ export function Home() {
           )}
         </div>
       </motion.section>
+
+      <StepUpCard />
 
       {/* Week strip */}
       <motion.section {...stagger(2)} className="mt-8">

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { CATEGORY_COLOR, GhostButton, Icon, Pressable, PrimaryButton, Segmented, Sheet, Toggle } from "../components/ui";
 import { haptic } from "../lib/feedback";
 import { addDays, DOW_SHORT, fmtDateLong, fmtDuration, fmtRange, fmtTime, fromKey, nowMin, STEP, todayKey } from "../lib/time";
-import type { Category, DateKey } from "../lib/types";
+import { leadsOf, type Category, type DateKey } from "../lib/types";
+import { LeadPicker } from "../components/LeadPicker";
 import { blocksFor, useStore, type BlockInput, type Scope } from "../store/store";
 import { useUI } from "../store/ui";
 
@@ -11,6 +12,7 @@ const KINDS: { value: Category; label: string }[] = [
   { value: "reading", label: "Reading" },
   { value: "family", label: "Family" },
   { value: "chore", label: "Chore" },
+  { value: "body", label: "Body" },
 ];
 const LENGTHS = [15, 30, 45, 60, 90];
 const WEEK = [1, 2, 3, 4, 5, 6, 0];
@@ -56,6 +58,8 @@ function EditorBody({ ed, onClose }: { ed: EditorRef; onClose: () => void }) {
   const [movable, setMovable] = useState(editing ? editing.type !== "fixed" : true);
   const [challenge, setChallenge] = useState(editing?.challenge ?? "");
   const [alarm, setAlarm] = useState(!!editing?.alarm);
+  const defaultLeads = useStore((s) => s.settings.defaultReminderLeads);
+  const [leads, setLeads] = useState<number[]>(editing ? leadsOf(editing) : defaultLeads);
   const [weekly, setWeekly] = useState(!!tpl);
   const [repeat, setRepeat] = useState<number[]>(tpl?.days ?? [fromKey(ed.date).getDay()]);
   const [scope, setScope] = useState<Scope>("day");
@@ -83,6 +87,7 @@ function EditorBody({ ed, onClose }: { ed: EditorRef; onClose: () => void }) {
     repeat: weekly && repeat.length ? [...repeat].sort() : null,
     challenge,
     alarm,
+    reminderLeads: leads,
   };
   const canSave = title.trim().length > 0 && start + duration <= 24 * 60;
 
@@ -129,7 +134,7 @@ function EditorBody({ ed, onClose }: { ed: EditorRef; onClose: () => void }) {
       />
 
       {!isEvent && (
-        <div className="mt-3 grid grid-cols-4 gap-1.5">
+        <div className="mt-3 grid grid-cols-5 gap-1.5">
           {KINDS.map((k) => {
             const on = category === k.value;
             return (
@@ -137,7 +142,7 @@ function EditorBody({ ed, onClose }: { ed: EditorRef; onClose: () => void }) {
                 key={k.value}
                 scale={0.94}
                 onClick={() => setCategory(k.value)}
-                className={`flex h-10 items-center justify-center gap-1.5 rounded-full px-2 text-[13px] font-medium transition-colors ${on ? "bg-white/[0.12] text-ink" : "bg-white/[0.04] text-faint"}`}
+                className={`flex h-10 items-center justify-center gap-1 rounded-full px-1 text-[12px] font-medium transition-colors ${on ? "bg-white/[0.12] text-ink" : "bg-white/[0.04] text-faint"}`}
               >
                 <span className="h-2 w-2 rounded-full" style={{ background: CATEGORY_COLOR[k.value] }} />
                 {k.label}
@@ -267,6 +272,11 @@ function EditorBody({ ed, onClose }: { ed: EditorRef; onClose: () => void }) {
           <Toggle label="Can move" on={movable} onChange={setMovable} />
         </div>
       )}
+
+      <div className="mt-3 rounded-2xl border border-line px-4 py-3">
+        <div className="mb-3 text-[15px] font-medium">Remind me before</div>
+        <LeadPicker id="editor-leads" value={leads} onChange={setLeads} />
+      </div>
 
       {!isEvent && (
         <div className="mt-3 flex items-center justify-between gap-4 rounded-2xl border border-line px-4 py-3">

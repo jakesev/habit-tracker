@@ -49,14 +49,17 @@ export function Today() {
   const openMenu = useUI((s) => s.openMenu);
 
   const all = day?.blocks ?? [];
-  const blocks = all.filter((b) => !b.dropped);
+  const visible = all.filter((b) => !b.dropped);
+  // Anytime blocks (cold shower after work) sit apart from the clock.
+  const blocks = visible.filter((b) => !b.anytime);
+  const anytime = visible.filter((b) => b.anytime);
   const droppedTonight = all.filter((b) => b.dropped);
   const t = nowMin(now);
   const pct = completion(day) ?? 0;
-  const doneCount = blocks.filter((b) => b.status === "done" || b.status === "partial").length;
+  const doneCount = visible.filter((b) => b.status === "done" || b.status === "partial").length;
   const isEvent = (b: DayBlock) => b.category === "event";
-  const countable = blocks.filter((b) => !b.excused && !isEvent(b)).length;
-  const left = blocks.filter((b) => b.status === "planned" && !isEvent(b)).reduce((a, b) => a + b.duration, 0);
+  const countable = visible.filter((b) => !b.excused && !isEvent(b)).length;
+  const left = visible.filter((b) => b.status === "planned" && !isEvent(b)).reduce((a, b) => a + b.duration, 0);
 
   const current = blocks.find((b) => !isEvent(b) && b.status === "planned" && b.start <= t && t < b.start + b.duration);
   const next = blocks.find((b) => !isEvent(b) && b.status === "planned" && b.start > t);
@@ -137,6 +140,33 @@ export function Today() {
             Undo
           </Pressable>
         </div>
+      )}
+
+      {/* Anytime today: no clock, just get it done before the window closes. */}
+      {anytime.length > 0 && (
+        <section className="mt-5">
+          <div className="eyebrow mb-2 px-1">Anytime today</div>
+          <div className="grid gap-2">
+            {anytime.map((b) => {
+              const open = t >= b.start && b.status === "planned";
+              const label = statusLabel(b);
+              return (
+                <div key={b.id} className={`flex items-center rounded-[18px] border pr-1.5 ${open ? "border-ember/25 bg-ember/[0.05]" : "border-line bg-white/[0.025]"}`}>
+                  <Pressable scale={0.985} onClick={() => useUI.getState().open("block", { date: today, id: b.id })} className="min-w-0 flex-1 py-3 pl-4 text-left">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: CATEGORY_COLOR[b.category] }} />
+                      <span className="truncate text-[16px] font-medium">{b.title}</span>
+                    </div>
+                    <div className="mt-0.5 pl-4 text-[13px] text-faint">
+                      {label ? label.text : b.status === "planned" ? (t < b.start ? `From ${fmtTime(b.start)}` : `Any time before ${fmtTime(b.until ?? b.start + b.duration)}`) : ""}
+                    </div>
+                  </Pressable>
+                  <Check status={b.status} onToggle={() => (b.status === "planned" || b.status === "missed" ? completeBlock(today, b.id) : tick(today, b.id))} label={`Mark ${b.title} done`} />
+                </div>
+              );
+            })}
+          </div>
+        </section>
       )}
 
       {/* Hero: the one thing to do now */}

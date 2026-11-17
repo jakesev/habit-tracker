@@ -1,12 +1,13 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Check } from "../components/Check";
-import { CATEGORY_COLOR, CATEGORY_LABEL, GhostButton, Icon, Pressable, PrimaryButton, Scale, Segmented, Sheet, spring } from "../components/ui";
+import { CATEGORY_COLOR, CATEGORY_LABEL, GhostButton, Icon, Pressable, PrimaryButton, Scale, Sheet, spring } from "../components/ui";
 import { haptic, sound } from "../lib/feedback";
 import { useAccent } from "../lib/identity";
 import { blockCredit, completion, currentStandard, dailyScore, difficulty, restPassesUsedInWeek, stayedHard, timing, timingTip } from "../lib/score";
 import { fmtDateLong, fmtDuration, fmtRange, fmtTime, todayKey, weekStart } from "../lib/time";
-import type { DayBlock, SkipReason } from "../lib/types";
+import { leadsOf, type DayBlock, type SkipReason } from "../lib/types";
+import { LeadPicker } from "../components/LeadPicker";
 import { SKIP_OPTIONS, voice } from "../lib/voice";
 import { blocksFor, isEditable, selectBlock, useStore } from "../store/store";
 import { useUI } from "../store/ui";
@@ -29,7 +30,7 @@ export function BlockSheet() {
 
 function BlockBody({ date, b, onClose }: { date: string; b: DayBlock; onClose: () => void }) {
   const accent = useAccent();
-  const { setNote, setReminderLead, toggleChecklist, reopen, tick } = useStore.getState();
+  const { setNote, setReminderLeads, toggleChecklist, reopen, tick } = useStore.getState();
   const focus = useStore((s) => s.focus);
   const open = useUI((s) => s.open);
   const [note, setLocal] = useState(b.note ?? "");
@@ -197,12 +198,7 @@ function BlockBody({ date, b, onClose }: { date: string; b: DayBlock; onClose: (
           <div className="eyebrow mb-2 flex items-center gap-1.5">
             <Icon name="bell" size={13} /> Remind me before
           </div>
-          <Segmented
-            id={`lead-${b.id}`}
-            value={b.reminderLead}
-            onChange={(v) => setReminderLead(date, b.id, v)}
-            options={[5, 10, 15, 30, 60].map((m) => ({ value: m, label: `${m}m` }))}
-          />
+          <LeadPicker id={`lead-${b.id}`} value={leadsOf(b)} onChange={(v) => setReminderLeads(date, b.id, v)} />
         </section>
       )}
 

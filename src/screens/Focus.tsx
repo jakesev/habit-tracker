@@ -184,7 +184,12 @@ const R = 132;
 const C = 2 * Math.PI * R;
 
 function Running({ title, checklist, done, date, id }: { title: string; checklist?: string[]; done?: number[]; date: string; id: string }) {
-  const focus = useStore((s) => s.focus)!;
+  // While the screen animates closed after Cancel or Finish, the timer is already gone:
+  // keep showing the last one instead of crashing.
+  const live = useStore((s) => s.focus);
+  const lastFocus = useRef(live);
+  if (live) lastFocus.current = live;
+  const focus = (live ?? lastFocus.current)!;
   const { pauseFocus, resumeFocus, finishFocus, toggleChecklist, cancelFocus } = useStore.getState();
   const open = useUI((s) => s.open);
   const paused = focus.endsAt == null;

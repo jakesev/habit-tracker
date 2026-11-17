@@ -11,6 +11,7 @@ import { AlarmScreen } from "./screens/Alarm";
 import { NotifyPrompt } from "./screens/NotifyPrompt";
 import { fmtClock, nowMin, todayKey } from "./lib/time";
 import { selectBlock, useStore } from "./store/store";
+import { leadsOf } from "./lib/types";
 import { TABS, useUI, type Tab } from "./store/ui";
 import { FocusScreen, useFocusWatcher } from "./screens/Focus";
 import { Home } from "./screens/Home";
@@ -319,8 +320,9 @@ function useReminders() {
       for (const b of s.days[today]?.blocks ?? []) {
         if (b.status !== "planned") continue;
         const key = `${today}:${b.id}`;
-        if (!sent.has(key) && t >= b.start - b.reminderLead && t < b.start) {
-          sent.add(key);
+        const lead = leadsOf(b).find((l) => t >= b.start - l && t < b.start - l + 1);
+        if (lead != null && !sent.has(`${key}:${lead}`) && t < b.start) {
+          sent.add(`${key}:${lead}`);
           const firm = b.type === "fixed";
           notify(firm ? `${b.title} · ${Math.round(b.start - t)} min` : `${b.title} in ${Math.round(b.start - t)} min`, firm ? "Non-negotiable. Get up." : "You said you'd do it. Prove it.", key);
         }

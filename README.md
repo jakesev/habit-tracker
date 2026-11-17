@@ -18,6 +18,10 @@ Long-press the app icon for the **I'm home** shortcut.
 
 This is **Phase 1: core accountability**. Phases 2 (dynamic re-planning, Google Calendar, push) and 3 (smart planning, trends, weekly review, template editor) come next.
 
+## The plan grows with you
+
+You start with a **Warm-up** week built on what you already do: push-ups ×20 at 5am, a cold shower any time after work, a 15-minute sales script rep, reading at 8, plus the dogs and wind down. Dinner shows as busy time and isn't scored. Hold the standard on 5 of 7 days and Home offers **Build** (adds 15 min of writing and a Saturday script session), then **Strong** (writing 30, speaking, reading summary, meal prep). You → Your plan shows where you are and lets you switch. Blocks you add yourself survive a change of phase.
+
 ## What's in Phase 1
 
 | Area | What it does |
@@ -34,6 +38,8 @@ This is **Phase 1: core accountability**. Phases 2 (dynamic re-planning, Google 
 | **Log it** | **+ Add → Log it** for things off the plan: "Push-ups · 20 reps · 6:42am". Shows on Today at that time. +2 to the day's discipline score each (max +6). Never needed for the streak. Logged often = one-tap buttons. |
 | **Timing and advice** | On-time rate and average minutes late, per block and overall (Home → On time). When a block runs late most days, a tip offers a one-tap "Move it to …" for every week. |
 | **Timers** | Only for deep work (skills, reading). Everything else is a plain **Done**. Start late and the timer offers what's left of the block. Lengths move in 5-minute steps. **Break between blocks** (none / 5 / 10 min, default 5) ends each timer early so you reset before the next block. |
+| **Reminders** | Pick any mix of 5m / 10m / 15m / 30m / 1h heads-ups per block (or a default for new blocks). Each chip lights up when on. |
+| **Anytime blocks** | Things with a window, not a time (cold shower after work, before 9pm). Listed under "Anytime today", never late inside the window, one gentle notification when the window opens. |
 | **Rules** | 15-minute grid everywhere. Unticked blocks auto-mark *Not done* 15 min after their window closes. Corrections are logged and lock at the end of the next day. Excused skips leave the day's total. |
 | **Add and edit** | The **+ Add** on Today: add a habit block or an event (busy time, not scored) to any day, once or every week; edit or delete any block for just that day or every week. Tap a future day on the calendar to see its plan and add to it. |
 | **I'm home** | Only when you choose it (+ Add → "Home early or late?", or long-press the app icon): shower and dinner go first, then the evening re-plans around the fixed anchors (dogs, wind down). Flexible blocks shrink 15 min at a time before anything drops; family time is never cut. You see what changed and why before applying, and can undo. |

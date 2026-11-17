@@ -128,9 +128,14 @@ public final class PlanScheduler {
     }
 
     private static PendingIntent fireIntent(Context ctx, int code, int kind, String date, String id, int flags) {
+        return fireIntent(ctx, code, kind, date, id, 0, flags);
+    }
+
+    private static PendingIntent fireIntent(Context ctx, int code, int kind, String date, String id, int lead, int flags) {
         Intent i = new Intent(ctx, PlanReceiver.class);
         i.setAction(PlanReceiver.FIRE);
         i.putExtra("kind", kind);
+        i.putExtra("lead", lead);
         i.putExtra("date", date);
         i.putExtra("id", id);
         return PendingIntent.getBroadcast(ctx, code, i, flags | PendingIntent.FLAG_IMMUTABLE);
@@ -139,8 +144,9 @@ public final class PlanScheduler {
     /* ---------------------------------------------------------------- scheduling */
 
     private static final class Trigger {
-        int code; long at; int kind; String date; String id;
-        Trigger(int code, long at, int kind, String date, String id) { this.code = code; this.at = at; this.kind = kind; this.date = date; this.id = id; }
+        int code; long at; int kind; String date; String id; int lead;
+        Trigger(int code, long at, int kind, String date, String id) { this(code, at, kind, date, id, 0); }
+        Trigger(int code, long at, int kind, String date, String id, int lead) { this.code = code; this.at = at; this.kind = kind; this.date = date; this.id = id; this.lead = lead; }
     }
 
     /** Cancel what was scheduled before and schedule from the plan as it stands now. */
@@ -165,11 +171,19 @@ public final class PlanScheduler {
             for (PlanStore.Block b : PlanStore.blocks(plan, date)) if (b.isPlanned()) live.add(b);
 
             for (PlanStore.Block b : live) {
+                if (b.anytime) {
+                    // No clock time: one gentle note when the window opens.
+                    if (notify) list.add(new Trigger(code(date, b.id, K_START), PlanStore.at(date, b.start), K_START, date, b.id));
+                    continue;
+                }
                 // Widget and "Up next" move on at every block boundary, notifications or not.
                 list.add(new Trigger(code(date, b.id + ":s", K_TICK), PlanStore.at(date, b.start), K_TICK, date, b.id));
                 list.add(new Trigger(code(date, b.id + ":e", K_TICK), PlanStore.at(date, b.end()), K_TICK, date, b.id));
                 if (!notify) continue;
-                list.add(new Trigger(code(date, b.id, K_HEADS), PlanStore.at(date, b.start - b.lead), K_HEADS, date, b.id));
+                for (int lead : b.leads) {
+                    if (lead <= 0) continue;
+                    list.add(new Trigger(code(date, b.id + ":h" + lead, K_HEADS), PlanStore.at(date, b.start - lead), K_HEADS, date, b.id, lead));
+                }
                 list.add(new Trigger(code(date, b.id, b.alarm ? K_ALARM : K_START), PlanStore.at(date, b.start), b.alarm ? K_ALARM : K_START, date, b.id));
             }
             if (notify && !live.isEmpty()) {
@@ -186,7 +200,7 @@ public final class PlanScheduler {
         List<Integer> codes = new ArrayList<>();
         for (Trigger t : list) {
             if (t.at <= now) continue;
-            PendingIntent pi = fireIntent(ctx, t.code, t.kind, t.date, t.id, PendingIntent.FLAG_UPDATE_CURRENT);
+            PendingIntent pi = fireIntent(ctx, t.code, t.kind, t.date, t.id, t.lead, PendingIntent.FLAG_UPDATE_CURRENT);
             try {
                 if (t.kind == K_ALARM && exact) {
                     am.setAlarmClock(new AlarmManager.AlarmClockInfo(t.at, open(ctx, "routine://today")), pi);
@@ -254,7 +268,7 @@ public final class PlanScheduler {
     }
 
     private static PlanStore.Block nextAfter(JSONObject plan, PlanStore.Block b) {
-        for (PlanStore.Block x : PlanStore.blocks(plan, b.date)) if (x.isPlanned() && x.start > b.start && !x.id.equals(b.id)) return x;
+        for (PlanStore.Block x : PlanStore.blocks(plan, b.date)) if (x.isPlanned() && !x.anytime && x.start > b.start && !x.id.equals(b.id)) return x;
         return null;
     }
 
@@ -274,6 +288,17 @@ public final class PlanScheduler {
     }
 
     static void postStart(Context ctx, JSONObject plan, PlanStore.Block b) {
+        if (b.anytime) {
+            NotificationCompat.Builder nb = base(ctx, CH_BLOCKS, plan)
+                .setContentTitle("Anytime today: " + b.title)
+                .setContentText("Whenever you're ready, before " + PlanStore.fmt(b.until) + ".")
+                .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true);
+            addBlockActions(ctx, nb, b, 30);
+            post(ctx, blockNotifId(b.date, b.id), nb.build());
+            return;
+        }
         PlanStore.Block next = nextAfter(plan, b);
         String title = b.isEvent() ? b.title + " · now" : "Now: " + b.title + (b.challenge != null ? " (" + b.challenge.toLowerCase() + ")" : "");
         String text = "Until " + PlanStore.fmt(b.end()) + "." + (next != null ? " Next: " + next.title + " at " + PlanStore.fmt(next.start) + "." : "");
@@ -399,13 +424,13 @@ public final class PlanScheduler {
     /** The block happening now, or null. */
     static PlanStore.Block current(JSONObject plan) {
         int now = PlanStore.nowMinutes();
-        for (PlanStore.Block b : PlanStore.blocks(plan, PlanStore.todayKey())) if (b.isPlanned() && b.start <= now && now < b.end()) return b;
+        for (PlanStore.Block b : PlanStore.blocks(plan, PlanStore.todayKey())) if (b.isPlanned() && !b.anytime && b.start <= now && now < b.end()) return b;
         return null;
     }
 
     /** The next planned block today after `after` minutes, or null. */
     static PlanStore.Block next(JSONObject plan, int after) {
-        for (PlanStore.Block b : PlanStore.blocks(plan, PlanStore.todayKey())) if (b.isPlanned() && b.start > after) return b;
+        for (PlanStore.Block b : PlanStore.blocks(plan, PlanStore.todayKey())) if (b.isPlanned() && !b.anytime && b.start > after) return b;
         return null;
     }
 

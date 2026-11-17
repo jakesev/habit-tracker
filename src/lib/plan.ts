@@ -27,7 +27,8 @@ export function snapArrival(m: number): Min {
 
 const target = (b: DayBlock) => b.origDuration ?? b.duration;
 const origin = (b: DayBlock) => b.origStart ?? b.start;
-const isOpen = (b: DayBlock) => b.status === "planned" || (b.status === "missed" && !b.skipReason);
+// Anytime blocks (cold shower after work) have no slot to move.
+const isOpen = (b: DayBlock) => !b.anytime && (b.status === "planned" || (b.status === "missed" && !b.skipReason));
 
 /**
  * "I'm home" re-plan. Pure: same input, same plan.

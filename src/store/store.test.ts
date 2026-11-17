@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { addDays, hm, todayKey } from "../lib/time";
 import { useStore, type BlockInput } from "./store";
+import { seedTemplate } from "../lib/seed";
 
 const today = () => todayKey();
 const input = (p: Partial<BlockInput> = {}): BlockInput => ({
@@ -18,6 +19,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-11-17T09:00:00")); // a Tuesday morning
   useStore.getState().resetAll();
+  useStore.setState({ template: seedTemplate() }); // the full routine, for these tests
   useStore.getState().ensureDays();
 });
 
@@ -109,5 +111,32 @@ describe("on time vs late", () => {
     useStore.getState().addLog(today(), { title: "Push-ups", count: 20, unit: "reps", at: hm(6, 42) });
     useStore.getState().addLog(today(), { title: "Cold plunge", at: hm(5, 30) });
     expect(day().logs!.map((l) => l.title)).toEqual(["Cold plunge", "Push-ups"]);
+  });
+});
+
+describe("warm-up plan", () => {
+  it("switching phase keeps what's done today and adds only what's still ahead", () => {
+    vi.setSystemTime(new Date("2026-11-17T18:40:00"));
+    useStore.getState().ensureDays();
+    const w = day().blocks.find((b) => b.templateId === "writing")!;
+    useStore.getState().markDone(today(), w.id, hm(18, 40));
+    useStore.getState().setProgram(1);
+    const ids = day().blocks.map((b) => b.templateId);
+    expect(ids).toContain("writing"); // done, kept
+    expect(ids).not.toContain("pushups"); // 5am already gone today
+    expect(ids).toContain("reading");
+    expect(ids).toContain("cold-shower");
+    expect(useStore.getState().settings.program?.phase).toBe(1);
+    // tomorrow is the clean warm-up
+    const tomorrow = useStore.getState().days["2026-11-18"].blocks.map((b) => b.templateId);
+    expect(tomorrow).toEqual(expect.arrayContaining(["pushups", "cold-shower", "dinner", "script", "dogs", "reading", "winddown"]));
+    expect(tomorrow).not.toContain("writing");
+  });
+
+  it("the cold shower is on time any time before 9pm", () => {
+    useStore.getState().setProgram(1);
+    const cs = day().blocks.find((b) => b.templateId === "cold-shower")!;
+    useStore.getState().markDone(today(), cs.id, hm(20, 30));
+    expect(day().blocks.find((b) => b.id === cs.id)!.late).toBe(false);
   });
 });

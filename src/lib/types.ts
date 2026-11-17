@@ -5,7 +5,7 @@ export type Min = number;
 export type DateKey = string;
 
 /** "event" = something on your calendar (dentist, client). Busy time, not a habit: no tick, no score. */
-export type Category = "skill" | "reading" | "family" | "chore" | "anchor" | "event";
+export type Category = "skill" | "reading" | "family" | "chore" | "anchor" | "event" | "body";
 
 /** How the re-planner (Phase 2) is allowed to treat a block. */
 export type BlockType = "fixed" | "flexible" | "droppable" | "protected";
@@ -45,6 +45,11 @@ export interface TemplateBlock {
   challenge?: string;
   /** Alarm mode: rings until dismissed instead of a ping (non-negotiables). */
   alarm?: boolean;
+  /** Heads-ups for this block; falls back to the default. */
+  reminderLeads?: number[];
+  /** Do it any time from `start` until `until` (e.g. cold shower after work). Never "late" inside the window. */
+  anytime?: boolean;
+  until?: Min;
 }
 
 export interface Correction {
@@ -69,6 +74,8 @@ export interface DayBlock {
   homeAnchor?: boolean;
   challenge?: string;
   alarm?: boolean;
+  anytime?: boolean;
+  until?: Min;
   /** Did the hard version (e.g. the shower was cold). */
   challengeDone?: boolean;
   /** Done after its time + 15 min grace: half credit. */
@@ -97,6 +104,8 @@ export interface DayBlock {
   didItAnyway?: boolean;
 
   reminderLead: number;
+  /** Every heads-up you want, in minutes before the start (e.g. [30, 10, 5]). Empty = none. */
+  reminderLeads?: number[];
   checklistDone?: number[];
 
   actualStart?: number;
@@ -124,6 +133,9 @@ export interface Day {
   logs?: LogEntry[];
 }
 
+/** All the heads-ups for a block, biggest first. */
+export const leadsOf = (b: { reminderLead: number; reminderLeads?: number[] }) => [...(b.reminderLeads ?? [b.reminderLead])].sort((a, c) => c - a);
+
 export interface LogEntry {
   id: string;
   title: string;
@@ -140,7 +152,9 @@ export interface Settings {
   streakThreshold: number;
   /** Unused since rest passes follow your level; kept so old backups load. */
   restPassesPerWeek: number;
-  defaultReminderLead: number; // minutes
+  defaultReminderLead: number; // minutes (older single setting)
+  /** Heads-ups new blocks get, in minutes before the start. */
+  defaultReminderLeads: number[];
   questionTiming: QuestionTiming;
   haptics: boolean;
   sound: boolean;
@@ -153,6 +167,8 @@ export interface Settings {
   upNext: boolean;
   /** Minutes each focus timer ends early, to reset before the next block (0, 5 or 10). */
   transition: number;
+  /** Where you are in the plan's progression (Warm-up → Build → Strong) and since when. */
+  program?: { phase: number; since: DateKey; snoozeUntil?: DateKey };
   /** Usual time home from work (minutes), and bed time. */
   homeTime: number;
   bedTime: number;

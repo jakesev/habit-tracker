@@ -40,6 +40,7 @@ const COLOR: Record<Category, string> = {
   chore: "5", // banana
   anchor: "8", // graphite
   event: "7", // peacock
+  body: "2", // sage
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");

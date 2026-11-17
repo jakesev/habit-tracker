@@ -35,8 +35,13 @@ public final class PlanStore {
         public boolean fixed;
         public String challenge;
         public int lead;
+        /** Every heads-up, minutes before the start. */
+        public int[] leads;
         public boolean alarm;
         public boolean timer;
+        /** Do it any time between start and until (no clock time). */
+        public boolean anytime;
+        public int until;
 
         public boolean isEvent() { return "event".equals(category); }
         public boolean isPlanned() { return "planned".equals(status); }
@@ -96,8 +101,17 @@ public final class PlanStore {
                 b.challenge = o.isNull("challenge") ? null : o.optString("challenge", null);
                 if (b.challenge != null && b.challenge.isEmpty()) b.challenge = null;
                 b.lead = o.optInt("lead", 10);
+                JSONArray ls = o.optJSONArray("leads");
+                if (ls != null) {
+                    b.leads = new int[ls.length()];
+                    for (int k = 0; k < ls.length(); k++) b.leads[k] = ls.optInt(k);
+                } else {
+                    b.leads = new int[] { b.lead };
+                }
                 b.alarm = o.optBoolean("alarm", false);
                 b.timer = o.optBoolean("timer", false);
+                b.anytime = o.optBoolean("anytime", false);
+                b.until = o.isNull("until") ? b.start + b.duration : o.optInt("until", b.start + b.duration);
                 out.add(b);
             }
         }

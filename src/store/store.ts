@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { HOME_BLOCKS, seedTemplate } from "../lib/seed";
+import { HOME_BLOCKS } from "../lib/seed";
+import { isCustom, programTemplate } from "../lib/program";
 import type { PlanResult } from "../lib/plan";
 import { currentStandard, GRACE } from "../lib/score";
 import { mergeBusy } from "../lib/gcal-map";
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS: Settings = {
   streakThreshold: 80,
   restPassesPerWeek: 1,
   defaultReminderLead: 10,
+  defaultReminderLeads: [10],
   questionTiming: "after",
   haptics: true,
   sound: true,
@@ -49,6 +51,8 @@ export interface BlockInput {
   challenge?: string;
   /** Rings until dismissed. */
   alarm?: boolean;
+  /** Heads-ups, minutes before. */
+  reminderLeads?: number[];
 }
 export type Scope = "day" | "every";
 
@@ -69,7 +73,9 @@ const DEFAULT_CLOUD: CloudState = { connected: false, write: true, read: true };
 export type Answers = Partial<Pick<DayBlock, "resistance" | "energy" | "startDifficulty" | "note" | "challengeDone">>;
 
 /** Was a block done on time? Late = started more than 15 min after its planned start. */
-export function lateness(b: Pick<DayBlock, "start" | "duration">, doneAt: number, startedAt?: number) {
+export function lateness(b: Pick<DayBlock, "start" | "duration" | "until">, doneAt: number, startedAt?: number) {
+  // Anytime blocks: on time anywhere inside their window.
+  if (b.until != null) return doneAt > b.until ? { late: true, lateBy: Math.round(doneAt - b.until) } : { late: false, lateBy: 0 };
   const began = startedAt ?? doneAt - b.duration;
   const lateBy = Math.max(0, Math.round(began - b.start));
   const late = startedAt != null ? lateBy > GRACE : doneAt > b.start + b.duration + GRACE;
@@ -89,6 +95,8 @@ interface State {
   /** Replace a day's Google busy blocks with a fresh read. */
   applyBusy: (date: DateKey, busy: DayBlock[]) => void;
 
+  /** Switch the plan to a phase (Warm-up, Build, Strong). Today keeps what's done. */
+  setProgram: (phase: number) => void;
   addBlock: (input: BlockInput) => void;
   updateBlock: (date: DateKey, id: string, input: BlockInput, scope: Scope) => void;
   deleteBlock: (date: DateKey, id: string, scope: Scope) => void;
@@ -104,6 +112,7 @@ interface State {
   skip: (date: DateKey, id: string, reason: SkipReason) => void;
   reopen: (date: DateKey, id: string) => void;
   setReminderLead: (date: DateKey, id: string, lead: number) => void;
+  setReminderLeads: (date: DateKey, id: string, leads: number[]) => void;
   toggleChecklist: (date: DateKey, id: string, i: number) => void;
 
   startFocus: (date: DateKey, id: string, minutes: number) => void;
@@ -144,8 +153,11 @@ export function blocksFor(date: DateKey, template: TemplateBlock[], settings: Se
       homeAnchor: t.homeAnchor,
       challenge: t.challenge,
       alarm: t.alarm,
+      anytime: t.anytime,
+      until: t.until,
       status: "planned",
       reminderLead: settings.defaultReminderLead,
+      reminderLeads: t.reminderLeads ?? settings.defaultReminderLeads,
     }));
 }
 
@@ -165,8 +177,11 @@ function instance(t: TemplateBlock, settings: Settings): DayBlock {
     homeAnchor: t.homeAnchor,
     challenge: t.challenge,
     alarm: t.alarm,
+    anytime: t.anytime,
+    until: t.until,
     status: "planned",
     reminderLead: settings.defaultReminderLead,
+    reminderLeads: t.reminderLeads ?? settings.defaultReminderLeads,
   };
 }
 
@@ -182,6 +197,7 @@ function blockFields(i: BlockInput) {
     minDuration: event || !i.movable ? duration : 15,
     challenge: event ? undefined : i.challenge?.trim() || undefined,
     alarm: !!i.alarm,
+    ...(i.reminderLeads ? { reminderLeads: [...i.reminderLeads].sort((a, c) => c - a) } : {}),
   };
 }
 
@@ -196,6 +212,24 @@ function oneOff(i: BlockInput, settings: Settings): DayBlock {
 
 const sortDay = (d: Day): Day => ({ ...d, blocks: [...d.blocks].sort((a, b) => a.start - b.start) });
 const withBlock = (d: Day, b: DayBlock): Day => sortDay({ ...d, blocks: [...d.blocks, b] });
+
+/**
+ * Lay today and tomorrow out again from a new template. Anything already done, skipped,
+ * missed, added by hand or from Google stays; blocks whose time has already passed today
+ * aren't added (they'd only count against you).
+ */
+export function rebuildDays(days: Record<DateKey, Day>, template: TemplateBlock[], settings: Settings, today: DateKey, now: number) {
+  const out = { ...days };
+  for (const k of [today, addDays(today, 1)]) {
+    const d = out[k];
+    if (!d) continue;
+    const keep = d.blocks.filter((b) => b.status !== "planned" || b.templateId === "once" || b.templateId === "gcal" || isCustom(b.templateId));
+    const kept = new Set(keep.map((b) => b.templateId));
+    const fresh = blocksFor(k, template, settings).filter((b) => !kept.has(b.templateId) && (k !== today || (b.until ?? b.start + b.duration + GRACE) > now));
+    out[k] = { ...d, blocks: [...keep, ...fresh].sort((a, b) => a.start - b.start), homeAt: undefined, beforeHome: undefined };
+  }
+  return out;
+}
 
 /** Corrections are allowed until the end of the next day. */
 export const isEditable = (date: DateKey, today = todayKey()) => diffDays(date, today) <= 1;
@@ -234,7 +268,7 @@ export const useStore = create<State>()(
 
       return {
         firstDay: null,
-        template: seedTemplate(DEFAULT_SETTINGS.familyNight),
+        template: programTemplate(1, DEFAULT_SETTINGS.familyNight),
         days: {},
         settings: DEFAULT_SETTINGS,
         focus: null,
@@ -250,6 +284,17 @@ export const useStore = create<State>()(
             const same = old.length === busy.length && old.every((b, i) => b.id === busy[i]?.id && b.start === busy[i].start && b.duration === busy[i].duration && b.title === busy[i].title);
             if (same) return s;
             return { days: { ...s.days, [date]: { ...d, blocks: mergeBusy(d.blocks, busy) } } };
+          }),
+
+        setProgram: (phase) =>
+          set((s) => {
+            const today = todayKey();
+            const template = [...programTemplate(phase, s.settings.familyNight), ...s.template.filter((t) => isCustom(t.id))];
+            return {
+              template,
+              days: rebuildDays(s.days, template, s.settings, today, nowMin()),
+              settings: { ...s.settings, program: { phase, since: today } },
+            };
           }),
 
         addBlock: (input) =>
@@ -334,7 +379,9 @@ export const useStore = create<State>()(
           for (let k = first; diffDays(k, tomorrow) >= 0; k = addDays(k, 1)) {
             if (!days[k]) {
               const extra = s.oneOffs[k] ?? [];
-              days[k] = { date: k, blocks: [...blocksFor(k, s.template, s.settings), ...extra].sort((a, b) => a.start - b.start), standard };
+              // Your very first day starts now: blocks already over aren't held against you.
+              const fresh = blocksFor(k, s.template, s.settings).filter((b) => !(k === today && !s.firstDay && (b.until ?? b.start + b.duration + GRACE) <= nowMin(now)));
+              days[k] = { date: k, blocks: [...fresh, ...extra].sort((a, b) => a.start - b.start), standard };
               if (extra.length) {
                 const { [k]: _used, ...rest } = get().oneOffs;
                 set({ oneOffs: rest });
@@ -352,7 +399,7 @@ export const useStore = create<State>()(
               const running = s.focus?.blockId === b.id;
               // Shower and dinner wait for "I'm home"; if it never comes they close at bed time.
               // 15 minutes of grace after the planned end before it's Not done.
-              const end = b.homeAnchor && d.homeAt == null && k === today ? s.settings.bedTime : b.start + b.duration + GRACE;
+              const end = b.until ?? (b.homeAnchor && d.homeAt == null && k === today ? s.settings.bedTime : b.start + b.duration + GRACE);
               if (b.category !== "event" && b.status === "planned" && !running && end <= cutoff) {
                 dirty = true;
                 return { ...b, status: "missed" as const };
@@ -440,6 +487,7 @@ export const useStore = create<State>()(
           }),
 
         setReminderLead: (date, id, lead) => patch(date, id, (b) => ({ ...b, reminderLead: lead })),
+        setReminderLeads: (date, id, leads) => patch(date, id, (b) => ({ ...b, reminderLeads: [...leads].sort((a, c) => c - a), reminderLead: leads.length ? Math.min(...leads) : b.reminderLead })),
 
         toggleChecklist: (date, id, i) =>
           patch(date, id, (b) => {
@@ -547,7 +595,7 @@ export const useStore = create<State>()(
         resetAll: () =>
           set({
             firstDay: null,
-            template: seedTemplate(DEFAULT_SETTINGS.familyNight),
+            template: programTemplate(1, DEFAULT_SETTINGS.familyNight),
             days: {},
             settings: DEFAULT_SETTINGS,
             focus: null,
@@ -559,7 +607,7 @@ export const useStore = create<State>()(
     {
       name: "stride-routine-v1",
       storage: safeStorage,
-      version: 6,
+      version: 7,
       // New settings get their defaults even when older saved data doesn't have them.
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<State>;
@@ -569,7 +617,7 @@ export const useStore = create<State>()(
         const p = persisted as { template?: { id: string }[]; settings?: object; days?: Record<string, { date: string; blocks: { templateId: string }[] }> };
         if (from < 2) {
           // v2: shower + dinner, placed when you tap "I'm home".
-          if (p.template && !p.template.some((t) => t.id === "shower")) p.template = [...HOME_BLOCKS, ...p.template];
+          if (p.template && p.template.some((t) => t.id === "writing") && !p.template.some((t) => t.id === "shower")) p.template = [...HOME_BLOCKS, ...p.template];
           p.settings = { ...DEFAULT_SETTINGS, ...p.settings };
           const today = todayKey();
           for (const k of Object.keys(p.days ?? {})) {
@@ -606,6 +654,15 @@ export const useStore = create<State>()(
           // v3: the four look-based names became Shugyo and Vow.
           const st = (p.settings ?? {}) as { identity?: string };
           if (st.identity !== "shugyo" && st.identity !== "vow") p.settings = { ...st, identity: "shugyo" };
+        }
+        if (from < 7) {
+          // v7: start over gently with the Warm-up phase, built from what you already do.
+          const st = { ...DEFAULT_SETTINGS, ...(p.settings as Partial<Settings>) };
+          const own = ((p.template as TemplateBlock[] | undefined) ?? []).filter((t) => isCustom(t.id));
+          const template = [...programTemplate(1, st.familyNight), ...own];
+          p.template = template;
+          p.settings = { ...st, program: { phase: 1, since: todayKey() } };
+          if (p.days) p.days = rebuildDays(p.days as unknown as Record<DateKey, Day>, template, st, todayKey(), nowMin()) as never;
         }
         if (from < 6) {
           // v6: alarm mode for the non-negotiables.

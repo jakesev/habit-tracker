@@ -36,7 +36,11 @@ public class PlanReceiver extends BroadcastReceiver {
                 PlanStore.Block b = PlanStore.find(plan, date, id);
                 switch (kind) {
                     case PlanScheduler.K_HEADS:
-                        if (b != null && b.isPlanned()) PlanScheduler.postHeadsUp(ctx, plan, b, false);
+                        if (b != null && b.isPlanned()) {
+                            int lead = intent.getIntExtra("lead", 0);
+                            if (lead > 0) b.lead = lead;
+                            PlanScheduler.postHeadsUp(ctx, plan, b, false);
+                        }
                         break;
                     case PlanScheduler.K_START:
                         if (b != null && b.isPlanned()) PlanScheduler.postStart(ctx, plan, b);

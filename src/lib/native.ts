@@ -9,7 +9,7 @@ import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { Share } from "@capacitor/share";
 import { addDays } from "./time";
-import type { Day, DateKey } from "./types";
+import { leadsOf, type Day, type DateKey } from "./types";
 
 export const isNative = Capacitor.isNativePlatform();
 
@@ -72,7 +72,7 @@ export interface PlanPayload {
   upNext: boolean;
   accent: string;
   nudgeAt: number;
-  days: { date: DateKey; blocks: { id: string; title: string; start: number; dur: number; status: string; cat: string; fixed: boolean; challenge: string | null; lead: number; alarm: boolean; timer: boolean }[] }[];
+  days: { date: DateKey; blocks: { id: string; title: string; start: number; dur: number; status: string; cat: string; fixed: boolean; challenge: string | null; lead: number; leads: number[]; alarm: boolean; timer: boolean; anytime: boolean; until: number | null }[] }[];
 }
 
 /** What the native side needs: today and tomorrow, without dropped blocks. Pure, so it's tested. */
@@ -99,8 +99,11 @@ export function buildPlanPayload(days: Record<DateKey, Day>, today: DateKey, opt
             fixed: b.type === "fixed",
             challenge: b.challenge ?? null,
             lead: b.reminderLead,
+            leads: leadsOf(b),
             alarm: !!b.alarm && b.category !== "event",
             timer: b.category === "skill" || b.category === "reading",
+            anytime: !!b.anytime,
+            until: b.until ?? null,
           })),
       })),
   };

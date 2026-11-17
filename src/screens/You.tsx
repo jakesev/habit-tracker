@@ -6,7 +6,9 @@ import { useStore } from "../store/store";
 import { useUI } from "../store/ui";
 import { AnimatePresence, motion } from "framer-motion";
 import { Logo } from "../components/Logo";
+import { LeadPicker } from "../components/LeadPicker";
 import { CalendarSettings } from "./CalendarSettings";
+import { PlanSection } from "./Program";
 import { APP, THEMES, useTheme } from "../lib/identity";
 import { currentStandard, STANDARDS } from "../lib/score";
 import { todayKey } from "../lib/time";
@@ -115,6 +117,8 @@ export function You() {
         </div>
         <p className="mt-2 px-1 text-[12px] text-faint">{theme.line}</p>
       </section>
+      <PlanSection />
+
       <section className="mt-7">
         <div className="eyebrow mb-2 px-1">Your standard</div>
         <div className="card overflow-hidden">
@@ -257,14 +261,9 @@ export function You() {
           </div>
         )}
         <div className="px-4 py-4">
-          <div className="text-[15px] font-medium">Default lead time</div>
+          <div className="text-[15px] font-medium">Heads-ups for new blocks</div>
           <div className="mt-3">
-            <Segmented
-              id="lead"
-              value={settings.defaultReminderLead}
-              onChange={(v) => update({ defaultReminderLead: v })}
-              options={[5, 10, 15, 30, 60].map((m) => ({ value: m, label: `${m}m` }))}
-            />
+            <LeadPicker id="lead-default" value={settings.defaultReminderLeads} onChange={(v) => update({ defaultReminderLeads: v })} />
           </div>
         </div>
       </Group>

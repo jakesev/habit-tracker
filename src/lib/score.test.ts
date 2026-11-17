@@ -20,6 +20,7 @@ const settings: Settings = {
   streakThreshold: 80,
   restPassesPerWeek: 1,
   defaultReminderLead: 10,
+  defaultReminderLeads: [10],
   questionTiming: "after",
   haptics: true,
   sound: true,

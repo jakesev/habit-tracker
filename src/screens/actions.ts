@@ -15,7 +15,7 @@ export function completeBlock(date: DateKey, id: string) {
   if (!b) return;
   const wasDone = b.status === "done" || b.status === "partial";
   if (wasDone) return s.tick(date, id);
-  const pastGrace = date !== todayKey() || nowMin() > b.start + b.duration + GRACE;
+  const pastGrace = date !== todayKey() || nowMin() > (b.until ?? b.start + b.duration + GRACE);
   if (pastGrace) return useUI.getState().open("late", { date, id });
   s.tick(date, id);
   // Let the burst play before the sheet rises.
