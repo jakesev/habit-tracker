@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { addDays, hm, todayKey } from "../lib/time";
-import { useStore, type BlockInput } from "./store";
+import { rebuildDays, useStore, type BlockInput } from "./store";
 import { seedTemplate } from "../lib/seed";
+import { programTemplate } from "../lib/program";
 
 const today = () => todayKey();
 const input = (p: Partial<BlockInput> = {}): BlockInput => ({
@@ -138,5 +139,25 @@ describe("warm-up plan", () => {
     const cs = day().blocks.find((b) => b.templateId === "cold-shower")!;
     useStore.getState().markDone(today(), cs.id, hm(20, 30));
     expect(day().blocks.find((b) => b.id === cs.id)!.late).toBe(false);
+  });
+});
+
+describe("moving to a new plan mid-evening (the 9pm case)", () => {
+  it("drops old-plan leftovers and puts reading back to tick", () => {
+    vi.setSystemTime(new Date("2026-11-17T21:04:00"));
+    useStore.getState().ensureDays(); // old full routine: everything before 9pm is now Not done
+    const before = day();
+    const script = before.blocks.find((b) => b.templateId === "script")!;
+    useStore.getState().skip(today(), script.id, "chose-else");
+    const w = before.blocks.find((b) => b.templateId === "speaking")!;
+    useStore.getState().markDone(today(), w.id, hm(18, 50)); // something you actually did
+    const s = useStore.getState();
+    const template = programTemplate(1);
+    useStore.setState({ template, days: rebuildDays(s.days, template, s.settings, today(), hm(21, 4), true) });
+    const ids = day().blocks.map((b) => `${b.templateId}:${b.status}`);
+    expect(ids).toContain("reading:planned");
+    expect(ids).toContain("speaking:done"); // what you did stays
+    expect(ids.some((x) => x.startsWith("script"))).toBe(false); // skipped old-plan block gone
+    expect(ids.some((x) => x.startsWith("writing") || x.startsWith("family"))).toBe(false);
   });
 });

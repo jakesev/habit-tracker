@@ -214,18 +214,40 @@ const sortDay = (d: Day): Day => ({ ...d, blocks: [...d.blocks].sort((a, b) => a
 const withBlock = (d: Day, b: DayBlock): Day => sortDay({ ...d, blocks: [...d.blocks, b] });
 
 /**
- * Lay today and tomorrow out again from a new template. Anything already done, skipped,
- * missed, added by hand or from Google stays; blocks whose time has already passed today
- * aren't added (they'd only count against you).
+ * Lay today and tomorrow out again from a new template.
+ *  - Kept: anything you actually did, plus your own, one-off and Google blocks.
+ *  - Removed: old-plan blocks that were waiting, skipped or auto-marked "Not done". They were the old plan's, not yours.
+ *  - Blocks in the new plan keep their status and take the new times.
+ *  - New blocks whose time already passed today are added only with `includePast`
+ *    (e.g. a migration, so tonight's reading is there to tick) and never on a phase change.
  */
-export function rebuildDays(days: Record<DateKey, Day>, template: TemplateBlock[], settings: Settings, today: DateKey, now: number) {
+export function rebuildDays(
+  days: Record<DateKey, Day>,
+  template: TemplateBlock[],
+  settings: Settings,
+  today: DateKey,
+  now: number,
+  includePast = false,
+) {
   const out = { ...days };
+  const byId = new Map(template.map((t) => [t.id, t]));
   for (const k of [today, addDays(today, 1)]) {
     const d = out[k];
     if (!d) continue;
-    const keep = d.blocks.filter((b) => b.status !== "planned" || b.templateId === "once" || b.templateId === "gcal" || isCustom(b.templateId));
+    const yours = (b: DayBlock) => b.templateId === "once" || b.templateId === "gcal" || isCustom(b.templateId);
+    const acted = (b: DayBlock) => b.status === "done" || b.status === "partial" || (b.status === "skipped" && !b.dropped);
+    const did = (b: DayBlock) => b.status === "done" || b.status === "partial";
+    // Old-plan blocks stay only if you did them; skips and "Not done" from a plan you've left go.
+    const keep = d.blocks
+      .filter((b) => yours(b) || did(b) || byId.has(b.templateId))
+      .map((b) => {
+        const t = byId.get(b.templateId);
+        if (!t || acted(b) || yours(b)) return b;
+        // Still to do under the new plan: take its new times; an auto "Not done" gets a clean slate.
+        return { ...b, title: t.title, subtitle: t.subtitle, start: t.start, duration: t.duration, minDuration: t.minDuration, anytime: t.anytime, until: t.until, category: t.category, status: "planned" as const };
+      });
     const kept = new Set(keep.map((b) => b.templateId));
-    const fresh = blocksFor(k, template, settings).filter((b) => !kept.has(b.templateId) && (k !== today || (b.until ?? b.start + b.duration + GRACE) > now));
+    const fresh = blocksFor(k, template, settings).filter((b) => !kept.has(b.templateId) && (includePast || k !== today || (b.until ?? b.start + b.duration + GRACE) > now));
     out[k] = { ...d, blocks: [...keep, ...fresh].sort((a, b) => a.start - b.start), homeAt: undefined, beforeHome: undefined };
   }
   return out;
@@ -607,7 +629,7 @@ export const useStore = create<State>()(
     {
       name: "stride-routine-v1",
       storage: safeStorage,
-      version: 8,
+      version: 9,
       // New settings get their defaults even when older saved data doesn't have them.
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<State>;
@@ -655,22 +677,16 @@ export const useStore = create<State>()(
           const st = (p.settings ?? {}) as { identity?: string };
           if (st.identity !== "shugyo" && st.identity !== "vow") p.settings = { ...st, identity: "shugyo" };
         }
-        if (from < 8) {
-          // v8: just what's set: push-ups, cold shower, reading at 8. Add more one at a time.
+        if (from < 9) {
+          // v9: clear old-plan leftovers from today and put tonight's reading (and this morning's
+          // push-ups) back on the day to tick. Keeps the phase you're on.
           const st = { ...DEFAULT_SETTINGS, ...(p.settings as Partial<Settings>) };
           const own = ((p.template as TemplateBlock[] | undefined) ?? []).filter((t) => isCustom(t.id));
-          const template = [...programTemplate(1, st.familyNight), ...own];
+          const phase = from < 8 ? 1 : st.program?.phase ?? 1;
+          const template = [...programTemplate(phase, st.familyNight), ...own];
           p.template = template;
-          p.settings = { ...st, program: { phase: 1, since: todayKey() } };
-          if (p.days) p.days = rebuildDays(p.days as unknown as Record<DateKey, Day>, template, st, todayKey(), nowMin()) as never;
-        } else if (from < 7) {
-          // v7: start over gently with the Warm-up phase, built from what you already do.
-          const st = { ...DEFAULT_SETTINGS, ...(p.settings as Partial<Settings>) };
-          const own = ((p.template as TemplateBlock[] | undefined) ?? []).filter((t) => isCustom(t.id));
-          const template = [...programTemplate(1, st.familyNight), ...own];
-          p.template = template;
-          p.settings = { ...st, program: { phase: 1, since: todayKey() } };
-          if (p.days) p.days = rebuildDays(p.days as unknown as Record<DateKey, Day>, template, st, todayKey(), nowMin()) as never;
+          p.settings = { ...st, program: from < 8 ? { phase: 1, since: todayKey() } : st.program ?? { phase: 1, since: todayKey() } };
+          if (p.days) p.days = rebuildDays(p.days as unknown as Record<DateKey, Day>, template, st, todayKey(), nowMin(), true) as never;
         }
         if (from < 6) {
           // v6: alarm mode for the non-negotiables.

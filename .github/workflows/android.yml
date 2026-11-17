@@ -38,6 +38,7 @@ jobs:
           # to switch on Google Calendar sync (see SETUP-GOOGLE.md). Both are public values.
           VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+          BUILD_NUMBER: ${{ github.run_number }}
         run: |
           npm ci
           npm test

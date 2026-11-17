@@ -4,7 +4,7 @@ import { Check } from "../components/Check";
 import { CATEGORY_COLOR, CountUp, Icon, Pressable, PrimaryButton, Ring } from "../components/ui";
 import { useToday } from "../lib/hooks";
 import { completion, stayedHard } from "../lib/score";
-import { fmtDateLong, fmtDuration, fmtRange, fmtTime, nowMin } from "../lib/time";
+import { fmtDateLong, fmtDuration, fmtTime, nowMin } from "../lib/time";
 import type { DayBlock, LogEntry } from "../lib/types";
 import { fmtLog } from "./Log";
 import { SKIP_OPTIONS, voice } from "../lib/voice";
@@ -50,9 +50,8 @@ export function Today() {
 
   const all = day?.blocks ?? [];
   const visible = all.filter((b) => !b.dropped);
-  // Anytime blocks (cold shower after work) sit apart from the clock.
-  const blocks = visible.filter((b) => !b.anytime);
-  const anytime = visible.filter((b) => b.anytime);
+  // One simple list, in time order. Anytime blocks sit at the start of their window.
+  const blocks = visible;
   const droppedTonight = all.filter((b) => b.dropped);
   const t = nowMin(now);
   const pct = completion(day) ?? 0;
@@ -61,7 +60,8 @@ export function Today() {
   const countable = visible.filter((b) => !b.excused && !isEvent(b)).length;
   const left = visible.filter((b) => b.status === "planned" && !isEvent(b)).reduce((a, b) => a + b.duration, 0);
 
-  const current = blocks.find((b) => !isEvent(b) && b.status === "planned" && b.start <= t && t < b.start + b.duration);
+  const endOf = (b: DayBlock) => (b.anytime ? (b.until ?? b.start + b.duration) : b.start + b.duration);
+  const current = blocks.find((b) => !isEvent(b) && b.status === "planned" && b.start <= t && t < endOf(b));
   const next = blocks.find((b) => !isEvent(b) && b.status === "planned" && b.start > t);
   const hero = current ?? next;
   const allDone = blocks.some((b) => !isEvent(b)) && blocks.every((b) => isEvent(b) || b.status !== "planned");
@@ -142,97 +142,6 @@ export function Today() {
         </div>
       )}
 
-      {/* Anytime today: no clock, just get it done before the window closes. */}
-      {anytime.length > 0 && (
-        <section className="mt-5">
-          <div className="eyebrow mb-2 px-1">Anytime today</div>
-          <div className="grid gap-2">
-            {anytime.map((b) => {
-              const open = t >= b.start && b.status === "planned";
-              const label = statusLabel(b);
-              return (
-                <div key={b.id} className={`flex items-center rounded-[18px] border pr-1.5 ${open ? "border-ember/25 bg-ember/[0.05]" : "border-line bg-white/[0.025]"}`}>
-                  <Pressable scale={0.985} onClick={() => useUI.getState().open("block", { date: today, id: b.id })} className="min-w-0 flex-1 py-3 pl-4 text-left">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: CATEGORY_COLOR[b.category] }} />
-                      <span className="truncate text-[16px] font-medium">{b.title}</span>
-                    </div>
-                    <div className="mt-0.5 pl-4 text-[13px] text-faint">
-                      {label ? label.text : b.status === "planned" ? (t < b.start ? `From ${fmtTime(b.start)}` : `Any time before ${fmtTime(b.until ?? b.start + b.duration)}`) : ""}
-                    </div>
-                  </Pressable>
-                  <Check status={b.status} onToggle={() => (b.status === "planned" || b.status === "missed" ? completeBlock(today, b.id) : tick(today, b.id))} label={`Mark ${b.title} done`} />
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* Hero: the one thing to do now */}
-      {hero && (
-        <motion.section
-          layout
-          className="relative mt-6 overflow-hidden rounded-[26px] border p-5"
-          style={{
-            borderColor: current ? "rgb(var(--ember-rgb) / 0.35)" : "var(--color-line)",
-            background: current
-              ? "radial-gradient(120% 120% at 0% 0%, rgb(var(--ember-rgb) / 0.16), transparent 55%), linear-gradient(180deg, rgb(255 255 255 / 0.04), rgb(255 255 255 / 0.015))"
-              : "linear-gradient(180deg, rgb(255 255 255 / 0.04), rgb(255 255 255 / 0.015))",
-          }}
-        >
-          <div className="flex items-center gap-2">
-            {current ? (
-              <span className="flex items-center gap-1.5 rounded-full bg-ember/15 px-2.5 py-1 text-[11px] font-semibold tracking-[0.08em] text-ember-hi uppercase">
-                <span className="h-1.5 w-1.5 rounded-full bg-ember" style={{ animation: "breathe 1.6s ease-in-out infinite" }} />
-                Now
-              </span>
-            ) : (
-              <span className="rounded-full bg-white/[0.06] px-2.5 py-1 text-[11px] font-semibold tracking-[0.08em] text-mute uppercase">
-                Up next · in {fmtDuration(Math.max(1, Math.round(hero.start - t)))}
-              </span>
-            )}
-            <span className="num text-[13px] text-mute">{fmtRange(hero.start, hero.duration)}</span>
-          </div>
-          <h2 className="mt-3 text-[26px] leading-tight font-semibold tracking-[-0.02em]">{hero.title}</h2>
-          {hero.subtitle && <p className="mt-1 text-[15px] text-mute">{hero.subtitle}</p>}
-
-          {current && (
-            <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
-              <motion.div
-                className="h-full rounded-full bg-ember"
-                initial={{ width: 0 }}
-                animate={{ width: `${((t - current.start) / current.duration) * 100}%` }}
-                transition={{ type: "spring", stiffness: 60, damping: 20 }}
-              />
-            </div>
-          )}
-
-          <div className="mt-5 flex items-center gap-3">
-            {!usesTimer(hero) && focus?.blockId !== hero.id ? (
-              <PrimaryButton onClick={() => completeBlock(today, hero.id)}>
-                <span className="inline-flex items-center gap-2">
-                  <Icon name="check" size={18} stroke={2.6} /> Done{hero.challenge ? ` · ${hero.challenge.toLowerCase()}?` : ""}
-                </span>
-              </PrimaryButton>
-            ) : focus?.blockId === hero.id ? (
-              <PrimaryButton onClick={() => open("focusSetup", { date: today, id: hero.id })}>Back to the timer</PrimaryButton>
-            ) : (
-              <PrimaryButton onClick={() => open("focusSetup", { date: today, id: hero.id })}>
-                <span className="inline-flex items-center gap-2">
-                  <Icon name="play" size={18} fill stroke={0} /> Start focus · {fmtDuration(hero.duration)}
-                </span>
-              </PrimaryButton>
-            )}
-            {usesTimer(hero) && (
-              <div className="shrink-0">
-                <Check status={hero.status} onToggle={() => completeBlock(today, hero.id)} label={`Mark ${hero.title} done`} size={34} />
-              </div>
-            )}
-          </div>
-        </motion.section>
-      )}
-
       {/* Timeline */}
       <section className="mt-8">
         <div className="eyebrow mb-3 px-1">Today's plan</div>
@@ -262,7 +171,7 @@ export function Today() {
               );
             }
             const b = item.b;
-            const live = current?.id === b.id;
+            const live = hero?.id === b.id;
             const label = statusLabel(b);
             const dim = b.status === "missed" || (b.status === "skipped" && b.excused);
             const color = CATEGORY_COLOR[b.category];
@@ -295,10 +204,11 @@ export function Today() {
                   </div>
                   {/* card */}
                   <div
-                    className={`mb-2.5 flex min-h-[68px] min-w-0 flex-1 items-center rounded-[18px] border pr-1.5 transition-colors ${
-                      live ? "border-ember/30 bg-ember/[0.07]" : "border-line bg-white/[0.025]"
+                    className={`mb-2.5 min-w-0 flex-1 rounded-[18px] border transition-colors ${
+                      live ? "border-ember/35 bg-ember/[0.08]" : "border-line bg-white/[0.025]"
                     }`}
                   >
+                  <div className="flex min-h-[68px] items-center pr-1.5">
                     <Pressable
                       scale={0.985}
                       onClick={() => open("block", { date: today, id: b.id })}
@@ -317,6 +227,11 @@ export function Today() {
                             <span>·</span>
                             <span className={`truncate ${label.tone === "bad" ? "text-[#f87171]/80" : label.tone === "good" ? "text-mute" : ""}`}>{label.text}</span>
                           </>
+                        ) : b.anytime ? (
+                          <>
+                            <span>·</span>
+                            <span className="truncate">Any time until {fmtTime(endOf(b))}</span>
+                          </>
                         ) : b.subtitle ? (
                           <>
                             <span>·</span>
@@ -334,6 +249,17 @@ export function Today() {
                     ) : (
                       <Check status={b.status} onToggle={() => (b.status === "planned" || b.status === "missed" ? completeBlock(today, b.id) : tick(today, b.id))} label={`Mark ${b.title} done`} />
                     )}
+                  </div>
+                  {/* The next thing to do gets its button right here. */}
+                  {live && usesTimer(b) && (
+                    <div className="px-3 pb-3">
+                      <PrimaryButton className="h-12 text-[15px]" onClick={() => open("focusSetup", { date: today, id: b.id })}>
+                        <span className="inline-flex items-center gap-2">
+                          <Icon name="play" size={16} fill stroke={0} /> {focus?.blockId === b.id ? "Back to the timer" : current?.id === b.id ? "Start now" : `Start · ${fmtTime(b.start)}`}
+                        </span>
+                      </PrimaryButton>
+                    </div>
+                  )}
                   </div>
                 </motion.li>
               </Fragment>

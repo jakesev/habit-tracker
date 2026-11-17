@@ -19,7 +19,7 @@ export interface Phase {
 }
 
 export const PHASES: Phase[] = [
-  { n: 1, name: "Foundation", line: "Push-ups in the morning, a cold shower, reading at 8.", adds: "Push-ups, cold shower, reading" },
+  { n: 1, name: "Foundation", line: "Push-ups 5–5:30am, a cold shower after work, reading at 8pm.", adds: "Push-ups, cold shower, reading" },
   { n: 2, name: "Sales rep", line: "Add one sales script rep, any time in the evening.", adds: "Sales script rep, 15 min, any time 5–8pm" },
   { n: 3, name: "Writing", line: "Add 15 minutes of writing in the evening.", adds: "Writing, 15 min, any time 5–8pm" },
   { n: 4, name: "Speaking", line: "Add 15 minutes of speaking practice. The full skills set.", adds: "Speaking, 15 min, any time 5–8pm" },
@@ -57,7 +57,7 @@ export function programTemplate(phase: number, _familyNight = 6): TemplateBlock[
       start: hm(5, 0),
       duration: 15,
       minDuration: 15,
-      until: hm(6, 0),
+      until: hm(5, 30),
       anytime: true,
       type: "flexible",
       priority: 4,

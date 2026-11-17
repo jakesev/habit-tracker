@@ -355,7 +355,7 @@ export function You() {
           </div>
         )}
       </div>
-      <p className="mt-6 text-center text-[12px] text-faint">{APP.name} · Phase 1</p>
+      <p className="mt-6 text-center text-[12px] text-faint">{APP.name} · build {__BUILD__}</p>
     </div>
   );
 }
