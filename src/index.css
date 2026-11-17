@@ -1,0 +1,139 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-bg: #08080a;
+  --color-surface: #111114;
+  --color-raised: #18181c;
+  --color-lift: #202026;
+  --color-line: rgb(255 255 255 / 0.07);
+  --color-line-strong: rgb(255 255 255 / 0.12);
+
+  --color-ink: #f4f4f2;
+  --color-mute: #a1a1aa;
+  --color-faint: #63636e;
+
+  /* One strong accent: ember. Used for the main action, the streak, and the live block. */
+  --color-ember: #ff6a2b;
+  --color-ember-hi: #ff8a4c;
+  --color-ember-lo: #c2410c;
+
+  /* Category colours, used sparingly (dots, thin rails). */
+  --color-skill: #8f9dff;
+  --color-reading: #8f9dff;
+  --color-family: #f19ab5;
+  --color-chore: #d8b77d;
+  --color-anchor: #8b9099;
+
+  --color-good: #4ade80;
+  --color-warn: #fbbf24;
+
+  --radius-card: 22px;
+  --ease-spring: cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+:root {
+  color-scheme: dark;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@layer base {
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01", "ss03";
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+  touch-action: manipulation;
+}
+
+/* Calm, deep backdrop: one warm bloom high up, nothing else. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgb(255 106 43 / 0.09), transparent 60%),
+    radial-gradient(80% 50% at 100% 110%, rgb(143 157 255 / 0.05), transparent 60%);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum", "cv11", "ss01";
+  letter-spacing: -0.03em;
+}
+
+.card {
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.035), rgb(255 255 255 / 0.015));
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.04) inset,
+    0 20px 40px -24px rgb(0 0 0 / 0.8);
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-faint);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ember);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+
+input,
+textarea {
+  font: inherit;
+}
+
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
