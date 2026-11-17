@@ -123,14 +123,14 @@ describe("warm-up plan", () => {
     useStore.getState().setProgram(1);
     const ids = day().blocks.map((b) => b.templateId);
     expect(ids).toContain("writing"); // done, kept
-    expect(ids).not.toContain("pushups"); // 5am already gone today
+    expect(ids).not.toContain("pushups"); // morning window already gone today
     expect(ids).toContain("reading");
     expect(ids).toContain("cold-shower");
+    expect(ids).not.toContain("dogs");
     expect(useStore.getState().settings.program?.phase).toBe(1);
-    // tomorrow is the clean warm-up
-    const tomorrow = useStore.getState().days["2026-11-18"].blocks.map((b) => b.templateId);
-    expect(tomorrow).toEqual(expect.arrayContaining(["pushups", "cold-shower", "dinner", "script", "dogs", "reading", "winddown"]));
-    expect(tomorrow).not.toContain("writing");
+    // tomorrow is just the foundation
+    const tomorrow = useStore.getState().days["2026-11-18"].blocks.map((b) => b.templateId).sort();
+    expect(tomorrow).toEqual(["cold-shower", "pushups", "reading"]);
   });
 
   it("the cold shower is on time any time before 9pm", () => {

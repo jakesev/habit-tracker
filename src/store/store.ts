@@ -607,7 +607,7 @@ export const useStore = create<State>()(
     {
       name: "stride-routine-v1",
       storage: safeStorage,
-      version: 7,
+      version: 8,
       // New settings get their defaults even when older saved data doesn't have them.
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<State>;
@@ -655,7 +655,15 @@ export const useStore = create<State>()(
           const st = (p.settings ?? {}) as { identity?: string };
           if (st.identity !== "shugyo" && st.identity !== "vow") p.settings = { ...st, identity: "shugyo" };
         }
-        if (from < 7) {
+        if (from < 8) {
+          // v8: just what's set: push-ups, cold shower, reading at 8. Add more one at a time.
+          const st = { ...DEFAULT_SETTINGS, ...(p.settings as Partial<Settings>) };
+          const own = ((p.template as TemplateBlock[] | undefined) ?? []).filter((t) => isCustom(t.id));
+          const template = [...programTemplate(1, st.familyNight), ...own];
+          p.template = template;
+          p.settings = { ...st, program: { phase: 1, since: todayKey() } };
+          if (p.days) p.days = rebuildDays(p.days as unknown as Record<DateKey, Day>, template, st, todayKey(), nowMin()) as never;
+        } else if (from < 7) {
           // v7: start over gently with the Warm-up phase, built from what you already do.
           const st = { ...DEFAULT_SETTINGS, ...(p.settings as Partial<Settings>) };
           const own = ((p.template as TemplateBlock[] | undefined) ?? []).filter((t) => isCustom(t.id));

@@ -20,8 +20,19 @@ describe("program phases", () => {
     const ids = PHASES.map((p) => new Set(programTemplate(p.n).map((b) => b.id)));
     for (let i = 1; i < ids.length; i++) for (const id of ids[i - 1]) expect(ids[i].has(id)).toBe(true);
   });
-  it("warm-up is light: four habits on a weekday evening", () => {
-    const tue = programTemplate(1).filter((b) => b.days.includes(2) && b.category !== "event" && b.category !== "anchor");
-    expect(tue.map((b) => b.id).sort()).toEqual(["cold-shower", "pushups", "reading", "script"]);
+  it("Foundation is just what's set: push-ups, cold shower, reading at 8", () => {
+    const tue = programTemplate(1).filter((b) => b.days.includes(2));
+    expect(tue.map((b) => b.id).sort()).toEqual(["cold-shower", "pushups", "reading"]);
+    const sat = programTemplate(1).filter((b) => b.days.includes(6));
+    expect(sat.map((b) => b.id).sort()).toEqual(["cold-shower-weekend", "pushups", "reading"]);
+    expect(programTemplate(1).find((b) => b.id === "reading")!.start).toBe(20 * 60);
+  });
+  it("only reading is on the clock; the rest are anytime windows", () => {
+    for (const b of programTemplate(4)) expect(!!b.anytime, b.title).toBe(b.id !== "reading");
+  });
+  it("adds one skill per phase", () => {
+    expect(programTemplate(2).map((b) => b.id)).toContain("script");
+    expect(programTemplate(3).map((b) => b.id)).toContain("writing");
+    expect(programTemplate(4).map((b) => b.id)).toContain("speaking");
   });
 });

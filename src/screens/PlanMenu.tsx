@@ -8,7 +8,10 @@ export function PlanMenu() {
   const open = useUI((s) => s.menu);
   const ui = useUI.getState;
   const bed = useStore((s) => s.settings.bedTime);
-  const late = nowMin() < bed;
+  const today = useStore((s) => s.days[todayKey()]);
+  const t = nowMin();
+  // Only worth offering when something on the clock is still ahead tonight.
+  const late = t < bed && !!today?.blocks.some((b) => b.status === "planned" && !b.anytime && b.category !== "event" && b.type !== "fixed" && b.start + b.duration > t);
   const go = (fn: () => void) => {
     ui().openMenu(false);
     setTimeout(fn, 220);

@@ -20,7 +20,11 @@ This is **Phase 1: core accountability**. Phases 2 (dynamic re-planning, Google 
 
 ## The plan grows with you
 
-You start with a **Warm-up** week built on what you already do: push-ups ×20 at 5am, a cold shower any time after work, a 15-minute sales script rep, reading at 8, plus the dogs and wind down. Dinner shows as busy time and isn't scored. Hold the standard on 5 of 7 days and Home offers **Build** (adds 15 min of writing and a Saturday script session), then **Strong** (writing 30, speaking, reading summary, meal prep). You → Your plan shows where you are and lets you switch. Blocks you add yourself survive a change of phase.
+The plan holds only what you've decided is **set**. It leaves dinner, family and the unexpected alone.
+
+- **Foundation:** push-ups (any time 5–6am), a cold shower (any time after work; any time on weekends), reading at 8pm. Only reading has a clock time.
+- Hold the standard on 5 of 7 days and Home offers the next step, one skill at a time, each 15 min any time 5–8pm: **Sales rep**, then **Writing**, then **Speaking**.
+- You → Your plan shows where you are and lets you switch. Anything you add yourself with **+ Add** stays through every change.
 
 ## What's in Phase 1
 

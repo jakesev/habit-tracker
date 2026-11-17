@@ -173,7 +173,12 @@ public final class PlanScheduler {
             for (PlanStore.Block b : live) {
                 if (b.anytime) {
                     // No clock time: one gentle note when the window opens.
-                    if (notify) list.add(new Trigger(code(date, b.id, K_START), PlanStore.at(date, b.start), K_START, date, b.id));
+                    if (notify) {
+                        list.add(new Trigger(code(date, b.id, K_START), PlanStore.at(date, b.start), K_START, date, b.id));
+                        // Last call an hour before the window closes, if the window is long enough.
+                        if (b.until - 60 > b.start + 30)
+                            list.add(new Trigger(code(date, b.id + ":last", K_HEADS), PlanStore.at(date, b.until - 60), K_HEADS, date, b.id, -1));
+                    }
                     continue;
                 }
                 // Widget and "Up next" move on at every block boundary, notifications or not.
@@ -280,6 +285,17 @@ public final class PlanScheduler {
             .setContentTitle(title)
             .setContentText(when + ". " + push)
             .setStyle(new NotificationCompat.BigTextStyle().bigText(when + ". " + push))
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true);
+        addBlockActions(ctx, nb, b, 15);
+        post(ctx, blockNotifId(b.date, b.id), nb.build());
+    }
+
+    static void postLastCall(Context ctx, JSONObject plan, PlanStore.Block b) {
+        NotificationCompat.Builder nb = base(ctx, CH_BLOCKS, plan)
+            .setContentTitle("Still to do: " + b.title)
+            .setContentText("An hour left. Window closes at " + PlanStore.fmt(b.until) + ".")
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true);

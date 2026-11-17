@@ -38,8 +38,12 @@ public class PlanReceiver extends BroadcastReceiver {
                     case PlanScheduler.K_HEADS:
                         if (b != null && b.isPlanned()) {
                             int lead = intent.getIntExtra("lead", 0);
-                            if (lead > 0) b.lead = lead;
-                            PlanScheduler.postHeadsUp(ctx, plan, b, false);
+                            if (lead < 0) {
+                                PlanScheduler.postLastCall(ctx, plan, b);
+                            } else {
+                                if (lead > 0) b.lead = lead;
+                                PlanScheduler.postHeadsUp(ctx, plan, b, false);
+                            }
                         }
                         break;
                     case PlanScheduler.K_START:
