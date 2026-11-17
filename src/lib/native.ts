@@ -8,7 +8,7 @@ import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
 import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { Share } from "@capacitor/share";
-import { addDays, fromKey, todayKey } from "./time";
+import { addDays } from "./time";
 import type { Day, DateKey } from "./types";
 
 export const isNative = Capacitor.isNativePlatform();
@@ -18,6 +18,13 @@ export const isNative = Capacitor.isNativePlatform();
 interface RoutineNativePlugin {
   setIdentity(o: { id: string }): Promise<void>;
   keepAwake(o: { on: boolean }): Promise<void>;
+  setPlan(o: { json: string }): Promise<void>;
+  takeActions(): Promise<{ json: string }>;
+  test(): Promise<void>;
+  snooze(o: { date: string; id: string; minutes: number }): Promise<void>;
+  clearBlock(o: { date: string; id: string }): Promise<void>;
+  focusShow(o: { title: string; endsAt: number; paused: boolean; remainingMs: number; accent: string }): Promise<void>;
+  focusHide(): Promise<void>;
 }
 const RoutineNative = registerPlugin<RoutineNativePlugin>("RoutineNative");
 
@@ -52,28 +59,107 @@ export function nativeHaptic(kind: "tap" | "success" | "hard" | "alarm"): boolea
 }
 
 /* ------------------------------------------------------------------ Reminders (fire even when the app is closed) */
+/*
+ * The Android side schedules every reminder, alarm, "Up next" update and widget refresh
+ * itself (PlanScheduler.java), from a compact copy of the plan we push here on each change.
+ * Done / Snooze tapped on a notification or the widget is queued natively and applied by
+ * applyNativeActions() when the app runs.
+ */
 
-const CHANNEL = "blocks"; // heads-up: pops on screen, sound + vibration
-const PLAN_CHANNEL = "plan"; // the day's plan: quiet, sits in the shade
-let channelsReady = false;
-let exactAllowed: boolean | null = null;
-
-async function ensureChannels() {
-  if (channelsReady) return;
-  await LocalNotifications.createChannel({ id: CHANNEL, name: "Block reminders", description: "A heads-up before each block, and when it starts", importance: 5, vibration: true, visibility: 1 });
-  await LocalNotifications.createChannel({ id: PLAN_CHANNEL, name: "Today's plan", description: "What's coming up today", importance: 3, vibration: false, visibility: 1 });
-  channelsReady = true;
+export interface PlanPayload {
+  v: 1;
+  notify: boolean;
+  upNext: boolean;
+  accent: string;
+  nudgeAt: number;
+  days: { date: DateKey; blocks: { id: string; title: string; start: number; dur: number; status: string; cat: string; fixed: boolean; challenge: string | null; lead: number; alarm: boolean; timer: boolean }[] }[];
 }
 
-/** Exact alarms make reminders land on the minute. Checked once, never nags. */
-async function canExact(): Promise<boolean> {
-  if (exactAllowed != null) return exactAllowed;
-  try {
-    exactAllowed = (await LocalNotifications.checkExactNotificationSetting()).exact_alarm === "granted";
-  } catch {
-    exactAllowed = true; // Android 11 and older: always allowed
+/** What the native side needs: today and tomorrow, without dropped blocks. Pure, so it's tested. */
+export function buildPlanPayload(days: Record<DateKey, Day>, today: DateKey, opts: { notify: boolean; upNext: boolean; accent: string; nudgeAt?: number }): PlanPayload {
+  return {
+    v: 1,
+    notify: opts.notify,
+    upNext: opts.upNext,
+    accent: opts.accent,
+    nudgeAt: opts.nudgeAt ?? 20 * 60 + 30,
+    days: [today, addDays(today, 1)]
+      .filter((d) => days[d])
+      .map((date) => ({
+        date,
+        blocks: days[date].blocks
+          .filter((b) => !b.dropped)
+          .map((b) => ({
+            id: b.id,
+            title: b.title,
+            start: b.start,
+            dur: b.duration,
+            status: b.status,
+            cat: b.category,
+            fixed: b.type === "fixed",
+            challenge: b.challenge ?? null,
+            lead: b.reminderLead,
+            alarm: !!b.alarm && b.category !== "event",
+            timer: b.category === "skill" || b.category === "reading",
+          })),
+      })),
+  };
+}
+
+let lastSig = "";
+let cleaned = false;
+
+/** Hand the plan to Android, which schedules everything from it. */
+export async function pushPlan(payload: PlanPayload) {
+  if (!isNative) return;
+  const json = JSON.stringify(payload);
+  if (json === lastSig) return;
+  lastSig = json;
+  if (!cleaned) {
+    cleaned = true;
+    // Older builds scheduled block reminders through the notifications plugin: clear those once.
+    try {
+      const pending = await LocalNotifications.getPending();
+      const old = pending.notifications.filter((n) => n.id !== FOCUS_ID);
+      if (old.length) await LocalNotifications.cancel({ notifications: old.map((n) => ({ id: n.id })) });
+      await LocalNotifications.deleteChannel({ id: "blocks" }).catch(() => {});
+      await LocalNotifications.deleteChannel({ id: "plan" }).catch(() => {});
+    } catch {
+      /* ignore */
+    }
   }
-  return exactAllowed;
+  try {
+    await RoutineNative.setPlan({ json });
+  } catch {
+    lastSig = "";
+  }
+}
+
+/** Done taps from notifications and the widget, oldest first. */
+export async function takeNativeActions(): Promise<{ type: string; date: DateKey; id: string; at: number }[]> {
+  if (!isNative) return [];
+  try {
+    const { json } = await RoutineNative.takeActions();
+    return JSON.parse(json || "[]");
+  } catch {
+    return [];
+  }
+}
+
+export function snoozeNative(date: DateKey, id: string, minutes: number) {
+  if (isNative) RoutineNative.snooze({ date, id, minutes }).catch(() => {});
+}
+
+export function clearBlockNotifications(date: DateKey, id: string) {
+  if (isNative) RoutineNative.clearBlock({ date, id }).catch(() => {});
+}
+
+/** The running focus timer as a live countdown in the notification shade. */
+export function showFocusNotification(o: { title: string; endsAt: number; paused: boolean; remainingMs: number; accent: string }) {
+  if (isNative) RoutineNative.focusShow(o).catch(() => {});
+}
+export function hideFocusNotification() {
+  if (isNative) RoutineNative.focusHide().catch(() => {});
 }
 
 export async function notificationsAllowed(): Promise<boolean> {
@@ -85,159 +171,37 @@ export async function notificationsAllowed(): Promise<boolean> {
   }
 }
 
-/** Ask once: show notifications, then "Alarms & reminders" so they land on time. */
+/** Ask once to show notifications. On-the-minute timing is allowed by the app itself (no settings detour). */
 export async function requestNotificationPermission(): Promise<boolean> {
   if (!isNative) return false;
   const p = await LocalNotifications.requestPermissions();
-  if (p.display !== "granted") return false;
-  try {
-    const exact = await LocalNotifications.checkExactNotificationSetting();
-    if (exact.exact_alarm !== "granted") await LocalNotifications.changeExactNotificationSetting();
-  } catch {
-    /* older Android: exact alarms allowed by default */
-  }
-  exactAllowed = null;
-  return true;
+  return p.display === "granted";
 }
 
-/** Stable numeric id per date + block + kind. */
-function nid(date: DateKey, blockId: string, kind: number) {
-  let h = kind;
-  for (const c of date + blockId) h = (Math.imul(h, 31) + c.charCodeAt(0)) | 0;
-  return (Math.abs(h) % 1_900_000_000) + kind;
-}
-
-const fmt = (min: number) => {
-  const h = Math.floor(min / 60) % 24;
-  const m = min % 60;
-  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")}${h < 12 ? "am" : "pm"}`;
-};
-
-type N = { id: number; title: string; body: string; at: number; channel: string; large?: string };
-
-/** What should be scheduled for the plan as it stands. Pure, so it can be tested. */
-export function plannedNotifications(days: Record<DateKey, Day>, now: number, today: DateKey, nudgeAt = 20 * 60 + 30): N[] {
-  const list: N[] = [];
-  for (const date of [today, addDays(today, 1)]) {
-    const day = days[date];
-    if (!day) continue;
-    const base = fromKey(date).getTime();
-    const at = (min: number) => base + min * 60_000;
-    const live = day.blocks.filter((b) => b.status === "planned" && !b.dropped).sort((a, b) => a.start - b.start);
-
-    // The plan, ahead of the first block: everything coming up, in one quiet notification.
-    const first = live[0];
-    if (first) {
-      const when = at(Math.max(first.start - 60, 6 * 60));
-      if (when > now)
-        list.push({
-          id: nid(date, "plan", 3),
-          title: `Today: ${live.length} block${live.length > 1 ? "s" : ""}, first ${first.title} at ${fmt(first.start)}`,
-          body: "Tap to see the plan.",
-          large: live.map((b) => `${fmt(b.start)}  ${b.title}`).join("\n"),
-          at: when,
-          channel: PLAN_CHANNEL,
-        });
-    }
-
-    live.forEach((b, i) => {
-      const next = live[i + 1];
-      const event = b.category === "event";
-      // Heads-up before.
-      const before = at(b.start - b.reminderLead);
-      if (before > now)
-        list.push({
-          id: nid(date, b.id, 1),
-          title: `${b.title} in ${b.reminderLead} min`,
-          body: `${fmt(b.start)}–${fmt(b.start + b.duration)}. ${event ? "Get ready to go." : b.type === "fixed" ? "Non-negotiable. Get up." : "You said you'd do it. Prove it."}`,
-          at: before,
-          channel: CHANNEL,
-        });
-      // When it starts.
-      const start = at(b.start);
-      if (start > now)
-        list.push({
-          id: nid(date, b.id, 2),
-          title: event ? `${b.title} · now` : `Now: ${b.title}${b.challenge ? ` (${b.challenge.toLowerCase()})` : ""}`,
-          body: `Until ${fmt(b.start + b.duration)}.${next ? ` Next: ${next.title} at ${fmt(next.start)}.` : ""}`,
-          at: start,
-          channel: CHANNEL,
-        });
-    });
-
-    const open = live.filter((b) => b.category !== "event" && b.start >= nudgeAt).length;
-    if (open > 0 && at(nudgeAt) > now)
-      list.push({ id: nid(date, "nudge", 4), title: `${open} block${open > 1 ? "s" : ""} still open`, body: "There's still time. Finish the day on your terms.", at: at(nudgeAt), channel: CHANNEL });
-  }
-  return list;
-}
-
-let lastSig = "";
-
-/**
- * Replace every scheduled reminder with the current plan for today and tomorrow,
- * and clear reminders already showing for blocks that are done.
- * Called whenever the plan changes (ticks, skips, re-plans, settings).
- */
-export async function syncReminders(days: Record<DateKey, Day>, enabled: boolean) {
-  if (!isNative) return;
-  const today = todayKey();
-  const list = enabled ? plannedNotifications(days, Date.now(), today) : [];
-  const sig = JSON.stringify(list);
-  if (sig === lastSig) return;
-  lastSig = sig;
-  try {
-    const pending = await LocalNotifications.getPending();
-    const keep = new Set([FOCUS_ID]);
-    const stale = pending.notifications.filter((n) => !keep.has(n.id));
-    if (stale.length) await LocalNotifications.cancel({ notifications: stale.map((n) => ({ id: n.id })) });
-
-    // Done or skipped? Take its reminders out of the notification shade too.
-    const finished = (days[today]?.blocks ?? []).filter((b) => b.status !== "planned").flatMap((b) => [nid(today, b.id, 1), nid(today, b.id, 2)]);
-    if (finished.length) await LocalNotifications.removeDeliveredNotificationsById({ ids: finished }).catch(() => {});
-
-    if (!list.length) return;
-    await ensureChannels();
-    const exact = await canExact();
-    await LocalNotifications.schedule({
-      notifications: list.map((n) => ({
-        id: n.id,
-        title: n.title,
-        body: n.body,
-        largeBody: n.large,
-        channelId: n.channel,
-        smallIcon: "ic_stat_icon",
-        group: "plan",
-        isExactNotification: exact,
-        schedule: { at: new Date(n.at), allowWhileIdle: true },
-      })),
-    });
-  } catch {
-    lastSig = "";
-  }
-}
-
-/** A test reminder, five seconds from now, so you can see what they look like. */
+/** A sample reminder right now, so you can see what they look like. */
 export async function sendTestReminder(): Promise<boolean> {
   if (!isNative) return false;
-  await ensureChannels();
-  await LocalNotifications.schedule({
-    notifications: [
-      {
-        id: 777_002,
-        title: "Writing in 10 min",
-        body: "6:15–6:45pm. You said you'd do it. Prove it.",
-        channelId: CHANNEL,
-        smallIcon: "ic_stat_icon",
-        isExactNotification: false,
-        schedule: { at: new Date(Date.now() + 5000), allowWhileIdle: true },
-      },
-    ],
-  });
+  await RoutineNative.test();
   return true;
 }
 
 const FOCUS_ID = 777_001;
+const CHANNEL = "focus_end";
+let channelReady = false;
+
+async function ensureChannels() {
+  if (channelReady) return;
+  await LocalNotifications.createChannel({ id: CHANNEL, name: "Focus timer ends", description: "When a focus timer runs out", importance: 5, vibration: true, visibility: 1 });
+  channelReady = true;
+}
+
+async function canExact(): Promise<boolean> {
+  try {
+    return (await LocalNotifications.checkExactNotificationSetting()).exact_alarm === "granted";
+  } catch {
+    return true;
+  }
+}
 
 /** A one-off alert, e.g. when the focus timer ends while the screen is off. */
 export async function scheduleOnce(id: number, title: string, body: string, at: number) {

@@ -27,6 +27,8 @@ const settings: Settings = {
   familyNight: 6,
   theme: "vermilion",
   notificationsAsked: false,
+  upNext: true,
+  transition: 5,
   homeTime: 1020,
   bedTime: 1260,
 };

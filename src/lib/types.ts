@@ -43,6 +43,8 @@ export interface TemplateBlock {
   homeAnchor?: boolean;
   /** The hard version of this block, e.g. "Cold" for the shower. */
   challenge?: string;
+  /** Alarm mode: rings until dismissed instead of a ping (non-negotiables). */
+  alarm?: boolean;
 }
 
 export interface Correction {
@@ -66,6 +68,7 @@ export interface DayBlock {
   checklist?: string[];
   homeAnchor?: boolean;
   challenge?: string;
+  alarm?: boolean;
   /** Did the hard version (e.g. the shower was cold). */
   challengeDone?: boolean;
   /** Done after its time + 15 min grace: half credit. */
@@ -146,6 +149,10 @@ export interface Settings {
   theme: "vermilion" | "gold" | "steel" | "jade" | "bone" | "blood";
   /** Asked for reminder permission once (Android app). */
   notificationsAsked: boolean;
+  /** Keep "Up next" in the notification shade. */
+  upNext: boolean;
+  /** Minutes each focus timer ends early, to reset before the next block (0, 5 or 10). */
+  transition: number;
   /** Usual time home from work (minutes), and bed time. */
   homeTime: number;
   bedTime: number;

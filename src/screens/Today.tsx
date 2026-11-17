@@ -294,6 +294,7 @@ export function Today() {
                           </>
                         ) : null}
                         {b.note && <Icon name="note" size={13} className="ml-0.5 shrink-0 text-faint" />}
+                        {b.alarm && b.status === "planned" && <Icon name="bell" size={13} className="ml-0.5 shrink-0 text-ember" />}
                       </div>
                     </Pressable>
                     {isEvent(b) ? (

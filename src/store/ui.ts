@@ -14,6 +14,7 @@ interface UI {
   checkin: Ref | null; // post-task check-in
   late: Ref | null; // "When did you do it?" after the grace window
   log: boolean; // Log it sheet
+  alarm: Ref | null; // full-screen alarm for a non-negotiable
   focusSetup: Ref | null; // focus timer, before start
   day: DateKey | null; // day detail from calendar
   home: boolean; // "I'm home" re-plan sheet
@@ -22,7 +23,7 @@ interface UI {
   toast: { id: number; title: string; line?: string; tone: "hard" | "plain" } | null;
 
   go: (t: Tab) => void;
-  open: (k: "block" | "skip" | "checkin" | "focusSetup" | "late", r: Ref | null) => void;
+  open: (k: "block" | "skip" | "checkin" | "focusSetup" | "late" | "alarm", r: Ref | null) => void;
   openLog: (v: boolean) => void;
   openDay: (d: DateKey | null) => void;
   openHome: (v: boolean) => void;
@@ -39,6 +40,7 @@ export const useUI = create<UI>((set, get) => ({
   checkin: null,
   late: null,
   log: false,
+  alarm: null,
   focusSetup: null,
   day: null,
   home: false,

@@ -5,7 +5,9 @@ import { notify } from "./lib/feedback";
 import { useApplyTheme } from "./lib/identity";
 import { handleAuthRedirect } from "./lib/cloud";
 import { useCloud } from "./lib/useCloud";
-import { ensureLauncher, isNative, notificationsAllowed, setupNativeChrome, syncReminders } from "./lib/native";
+import { buildPlanPayload, ensureLauncher, isNative, notificationsAllowed, pushPlan, setupNativeChrome, takeNativeActions } from "./lib/native";
+import { themeOf } from "./lib/identity";
+import { AlarmScreen } from "./screens/Alarm";
 import { NotifyPrompt } from "./screens/NotifyPrompt";
 import { fmtClock, nowMin, todayKey } from "./lib/time";
 import { selectBlock, useStore } from "./store/store";
@@ -41,19 +43,29 @@ export default function App() {
       });
     checkPermission();
     document.addEventListener("visibilitychange", checkPermission);
+    // Done taps from notifications and the widget.
+    applyNativeActions();
+    document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && applyNativeActions());
+    const poll = setInterval(applyNativeActions, 15_000);
     // Keep the phone's scheduled reminders in step with the plan.
     let t: ReturnType<typeof setTimeout> | undefined;
     const sync = () => {
       clearTimeout(t);
       t = setTimeout(() => {
         const s = useStore.getState();
-        syncReminders(s.days, s.settings.notifications);
+        const t = themeOf(s.settings.theme);
+        const accent = "#" + t.rgb.map((n) => n.toString(16).padStart(2, "0")).join("");
+        pushPlan(buildPlanPayload(s.days, todayKey(), { notify: s.settings.notifications, upNext: s.settings.upNext, accent }));
       }, 400);
     };
     sync();
-    return useStore.subscribe((s, prev) => {
+    const unsub = useStore.subscribe((s, prev) => {
       if (s.days !== prev.days || s.settings !== prev.settings) sync();
     });
+    return () => {
+      unsub();
+      clearInterval(poll);
+    };
   }, []);
   useEffect(() => {
     scroller.current?.scrollTo({ top: 0 });
@@ -97,14 +109,54 @@ export default function App() {
       <LateSheet />
       <LogSheet />
       <NotifyPrompt />
+      <AlarmScreen />
       <FocusScreen />
       <Toast />
     </MotionConfig>
   );
 }
 
+/** Apply Done taps made on notifications or the widget, at the time they were tapped. */
+async function applyNativeActions() {
+  if (!isNative) return;
+  const actions = await takeNativeActions();
+  let n = 0;
+  for (const a of actions) {
+    if (a.type !== "done") continue;
+    const s = useStore.getState();
+    const b = s.days[a.date]?.blocks.find((x) => x.id === a.id);
+    if (b && (b.status === "planned" || b.status === "missed")) {
+      s.markDone(a.date, a.id, a.at);
+      n++;
+    }
+  }
+  if (n) useUI.getState().showToast(n === 1 ? "Ticked from your notification" : `${n} ticked from notifications`, "Counted at the time you tapped Done.");
+}
+
+const param = (url: string, k: string) => new URL(url.replace(/^routine:\/\//, "https://app/")).searchParams.get(k);
+
 /** routine://im-home → open the "I'm home" re-plan on Today. */
 function handleLink(url: string) {
+  if (url.startsWith("routine://alarm")) {
+    const date = param(url, "date");
+    const id = param(url, "id");
+    if (date && id) useUI.getState().open("alarm", { date, id });
+    return;
+  }
+  if (url.startsWith("routine://focus-open")) {
+    const f = useStore.getState().focus;
+    if (f) useUI.getState().open("focusSetup", { date: f.date, id: f.blockId });
+    return;
+  }
+  if (url.startsWith("routine://focus")) {
+    const date = param(url, "date");
+    const id = param(url, "id");
+    if (date && id) {
+      useUI.getState().go("today");
+      setTimeout(() => useUI.getState().open("focusSetup", { date, id }), 250);
+    }
+    return;
+  }
   if (url.startsWith("routine://auth-callback")) {
     handleAuthRedirect(url).catch(() => useUI.getState().showToast("Sign-in didn't finish", "Try connecting again."));
     return;
@@ -122,6 +174,7 @@ function handleBack(): boolean {
   if (ui.focusSetup) return ui.open("focusSetup", null), true;
   if (ui.checkin) return ui.open("checkin", null), true;
   if (ui.skip) return ui.open("skip", null), true;
+  if (ui.alarm) return ui.open("alarm", null), true;
   if (ui.late) return ui.open("late", null), true;
   if (ui.log) return ui.openLog(false), true;
   if (ui.editor) return ui.openEditor(null), true;

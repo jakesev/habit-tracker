@@ -63,6 +63,76 @@ public class RoutineNativePlugin extends Plugin {
         call.resolve(ret);
     }
 
+    /** The web app pushes the plan (today + tomorrow) on every change. */
+    @PluginMethod
+    public void setPlan(PluginCall call) {
+        String json = call.getString("json", "{}");
+        PlanStore.savePlan(getContext(), json);
+        PlanScheduler.ensureChannels(getContext());
+        PlanScheduler.reschedule(getContext());
+        PlanScheduler.clearFinished(getContext());
+        PlanScheduler.refresh(getContext());
+        call.resolve();
+    }
+
+    /** Done / snooze taps from notifications and the widget, for the web app to apply. */
+    @PluginMethod
+    public void takeActions(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("json", PlanStore.takeActions(getContext()));
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void test(PluginCall call) {
+        PlanScheduler.postTest(getContext());
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void snooze(PluginCall call) {
+        String date = call.getString("date");
+        String id = call.getString("id");
+        int minutes = call.getInt("minutes", 10);
+        if (date != null && id != null) {
+            PlanScheduler.cancel(getContext(), PlanScheduler.alarmNotifId(date, id));
+            PlanScheduler.cancel(getContext(), PlanScheduler.blockNotifId(date, id));
+            PlanScheduler.snooze(getContext(), date, id, minutes);
+        }
+        call.resolve();
+    }
+
+    /** Clear a block's reminders and alarm from the shade (e.g. ticked in the app). */
+    @PluginMethod
+    public void clearBlock(PluginCall call) {
+        String date = call.getString("date");
+        String id = call.getString("id");
+        if (date != null && id != null) {
+            PlanScheduler.cancel(getContext(), PlanScheduler.alarmNotifId(date, id));
+            PlanScheduler.cancel(getContext(), PlanScheduler.blockNotifId(date, id));
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void focusShow(PluginCall call) {
+        PlanScheduler.showFocus(
+            getContext(),
+            call.getString("title", "Focus"),
+            (long) call.getDouble("endsAt", 0.0).doubleValue(),
+            Boolean.TRUE.equals(call.getBoolean("paused", false)),
+            (long) call.getDouble("remainingMs", 0.0).doubleValue(),
+            call.getString("accent", "#F0502E")
+        );
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void focusHide(PluginCall call) {
+        PlanScheduler.hideFocus(getContext());
+        call.resolve();
+    }
+
     @PluginMethod
     public void keepAwake(PluginCall call) {
         final boolean on = Boolean.TRUE.equals(call.getBoolean("on", false));

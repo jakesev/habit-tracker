@@ -55,6 +55,7 @@ function EditorBody({ ed, onClose }: { ed: EditorRef; onClose: () => void }) {
   const [duration, setDuration] = useState(editing?.duration ?? (isEvent ? 60 : 30));
   const [movable, setMovable] = useState(editing ? editing.type !== "fixed" : true);
   const [challenge, setChallenge] = useState(editing?.challenge ?? "");
+  const [alarm, setAlarm] = useState(!!editing?.alarm);
   const [weekly, setWeekly] = useState(!!tpl);
   const [repeat, setRepeat] = useState<number[]>(tpl?.days ?? [fromKey(ed.date).getDay()]);
   const [scope, setScope] = useState<Scope>("day");
@@ -81,6 +82,7 @@ function EditorBody({ ed, onClose }: { ed: EditorRef; onClose: () => void }) {
     movable: isEvent ? false : movable,
     repeat: weekly && repeat.length ? [...repeat].sort() : null,
     challenge,
+    alarm,
   };
   const canSave = title.trim().length > 0 && start + duration <= 24 * 60;
 
@@ -263,6 +265,16 @@ function EditorBody({ ed, onClose }: { ed: EditorRef; onClose: () => void }) {
             <div className="text-[12px] text-faint">Off = it stays at this time, like the dogs.</div>
           </div>
           <Toggle label="Can move" on={movable} onChange={setMovable} />
+        </div>
+      )}
+
+      {!isEvent && (
+        <div className="mt-3 flex items-center justify-between gap-4 rounded-2xl border border-line px-4 py-3">
+          <div className="min-w-0">
+            <div className="text-[15px] font-medium">Alarm</div>
+            <div className="text-[12px] text-faint">Rings until you dismiss it. For non-negotiables.</div>
+          </div>
+          <Toggle label="Alarm" on={alarm} onChange={setAlarm} />
         </div>
       )}
 

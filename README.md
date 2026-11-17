@@ -33,7 +33,7 @@ This is **Phase 1: core accountability**. Phases 2 (dynamic re-planning, Google 
 | **Hard version** | Any block can have one (Shower → **Cold**). Ticking asks "Cold?". Yes = **Stayed hard** and a discipline boost. |
 | **Log it** | **+ Add → Log it** for things off the plan: "Push-ups · 20 reps · 6:42am". Shows on Today at that time. +2 to the day's discipline score each (max +6). Never needed for the streak. Logged often = one-tap buttons. |
 | **Timing and advice** | On-time rate and average minutes late, per block and overall (Home → On time). When a block runs late most days, a tip offers a one-tap "Move it to …" for every week. |
-| **Timers** | Only for deep work (skills, reading). Everything else is a plain **Done**. |
+| **Timers** | Only for deep work (skills, reading). Everything else is a plain **Done**. Start late and the timer offers what's left of the block. Lengths move in 5-minute steps. **Break between blocks** (none / 5 / 10 min, default 5) ends each timer early so you reset before the next block. |
 | **Rules** | 15-minute grid everywhere. Unticked blocks auto-mark *Not done* 15 min after their window closes. Corrections are logged and lock at the end of the next day. Excused skips leave the day's total. |
 | **Add and edit** | The **+ Add** on Today: add a habit block or an event (busy time, not scored) to any day, once or every week; edit or delete any block for just that day or every week. Tap a future day on the calendar to see its plan and add to it. |
 | **I'm home** | Only when you choose it (+ Add → "Home early or late?", or long-press the app icon): shower and dinner go first, then the evening re-plans around the fixed anchors (dogs, wind down). Flexible blocks shrink 15 min at a time before anything drops; family time is never cut. You see what changed and why before applying, and can undo. |
@@ -61,7 +61,13 @@ Phase 1 is **local-first**: everything is stored on the device, so it's instant 
 
 ## Platform notes
 
-- **Android app reminders:** scheduled with the system, so they fire even when the app is closed, after a restart, and in Doze. You get three kinds: **the day's plan** an hour before the first block (quiet, lists every block); **a heads-up** before each block (its own lead time, default 10 min); and **"Now: …"** when it starts, with what's next. Ticking a block clears its reminders from the notification shade. **You → Reminders → Send a test reminder** shows what they look like. If reminders are off, Today shows a one-tap banner. Haptics are native.
+- **Android app reminders** run natively (`PlanScheduler.java`) from a copy of today's and tomorrow's plan, so they fire when the app is closed, after a restart, and on the minute:
+  - **the day's plan** an hour before the first block
+  - **a heads-up** before each block and **"Now: …"** when it starts, with **Done**, **Snooze 15** and (for skills/reading) **Start focus** buttons. Done works without opening the app and is applied with the on-time/late rules.
+  - **Alarm mode** (per block, on for the dogs and wind down by default): rings until you tap Done or Snooze 10.
+  - **Up next**: one quiet notification that always shows now (with progress) and next.
+  - **Focus timer**: a live countdown in the shade while it runs.
+  - **Home-screen widget** (long-press home screen → Widgets → Shugyo): Now/Next with progress and a Done button.
 - **Web version:** reminders fire while the page is open or in the background. iPhone browsers block web vibration, and web push on iPhone needs the page added to the Home Screen (iOS 16.4+).
 - **Reduce motion:** respected. Slides become fades.
 

@@ -8,7 +8,7 @@ import { useUI } from "../store/ui";
 const EXAMPLES = [
   { t: "Writing in 10 min", b: "6:15–6:45pm. You said you'd do it. Prove it." },
   { t: "Now: Shower (cold)", b: "Until 5:15pm. Next: Dinner at 5:15pm." },
-  { t: "Today: 9 blocks, first Shower at 5:00pm", b: "The whole plan, in your notifications." },
+  { t: "Dogs out, lock up", b: "Alarm: rings until you tap Done. For non-negotiables." },
 ];
 
 /** First open of the Android app: ask for reminders once, with what they'll look like. */
@@ -36,7 +36,7 @@ export function NotifyPrompt() {
           <Icon name="bell" size={24} />
         </span>
         <h2 className="mt-4 text-[24px] font-semibold tracking-[-0.02em]">Get a heads-up before every block</h2>
-        <p className="mt-1 text-[15px] text-mute">Reminders arrive even when the app is closed. Next, Android asks to allow notifications, then "Alarms &amp; reminders" so they land on the minute.</p>
+        <p className="mt-1 text-[15px] text-mute">Reminders arrive even when the app is closed, with Done and Snooze right on them. Next, Android asks to allow notifications.</p>
         <div className="mt-5 grid gap-2">
           {EXAMPLES.map((e) => (
             <div key={e.t} className="flex items-start gap-3 rounded-2xl border border-line bg-white/[0.03] px-4 py-3">
@@ -57,7 +57,7 @@ export function NotifyPrompt() {
             if (ok) {
               haptic("success");
               await sendTestReminder();
-              toast("Reminders on", "A test one arrives in 5 seconds.");
+              toast("Reminders on", "Pull down your notifications: there's a sample.");
             } else toast("Notifications blocked", "Turn them on in Android settings → Apps → Shugyo.");
           }}
         >

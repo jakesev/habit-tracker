@@ -29,6 +29,8 @@ export const DEFAULT_SETTINGS: Settings = {
   familyNight: 6,
   theme: "vermilion",
   notificationsAsked: false,
+  upNext: true,
+  transition: 5,
   homeTime: 17 * 60,
   bedTime: 21 * 60,
 };
@@ -45,6 +47,8 @@ export interface BlockInput {
   repeat: number[] | null;
   /** The hard version, e.g. "Cold". */
   challenge?: string;
+  /** Rings until dismissed. */
+  alarm?: boolean;
 }
 export type Scope = "day" | "every";
 
@@ -139,6 +143,7 @@ export function blocksFor(date: DateKey, template: TemplateBlock[], settings: Se
       checklist: t.checklist,
       homeAnchor: t.homeAnchor,
       challenge: t.challenge,
+      alarm: t.alarm,
       status: "planned",
       reminderLead: settings.defaultReminderLead,
     }));
@@ -159,6 +164,7 @@ function instance(t: TemplateBlock, settings: Settings): DayBlock {
     checklist: t.checklist,
     homeAnchor: t.homeAnchor,
     challenge: t.challenge,
+    alarm: t.alarm,
     status: "planned",
     reminderLead: settings.defaultReminderLead,
   };
@@ -175,6 +181,7 @@ function blockFields(i: BlockInput) {
     type: (event || !i.movable ? "fixed" : "flexible") as TemplateBlock["type"],
     minDuration: event || !i.movable ? duration : 15,
     challenge: event ? undefined : i.challenge?.trim() || undefined,
+    alarm: !!i.alarm,
   };
 }
 
@@ -442,7 +449,8 @@ export const useStore = create<State>()(
           }),
 
         startFocus: (date, id, minutes) => {
-          const ms = snapDuration(minutes) * 60_000;
+          // Timers move in 5-minute steps (blocks stay on the 15-minute grid).
+          const ms = Math.max(5, Math.round(minutes / 5) * 5) * 60_000;
           const now = Date.now();
           set({ focus: { date, blockId: id, totalMs: ms, startedAt: now, endsAt: now + ms, pausedRemaining: null } });
           patch(date, id, (b) => ({ ...b, actualStart: b.actualStart ?? now }));
@@ -551,7 +559,12 @@ export const useStore = create<State>()(
     {
       name: "stride-routine-v1",
       storage: safeStorage,
-      version: 5,
+      version: 6,
+      // New settings get their defaults even when older saved data doesn't have them.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<State>;
+        return { ...current, ...p, settings: { ...DEFAULT_SETTINGS, ...p.settings }, cloud: { ...DEFAULT_CLOUD, ...p.cloud } };
+      },
       migrate: (persisted, from) => {
         const p = persisted as { template?: { id: string }[]; settings?: object; days?: Record<string, { date: string; blocks: { templateId: string }[] }> };
         if (from < 2) {
@@ -593,6 +606,15 @@ export const useStore = create<State>()(
           // v3: the four look-based names became Shugyo and Vow.
           const st = (p.settings ?? {}) as { identity?: string };
           if (st.identity !== "shugyo" && st.identity !== "vow") p.settings = { ...st, identity: "shugyo" };
+        }
+        if (from < 6) {
+          // v6: alarm mode for the non-negotiables.
+          type T = { id: string; alarm?: boolean };
+          const alarmed = new Set(["dogs", "winddown"]);
+          p.template = (p.template as T[] | undefined)?.map((t) => (alarmed.has(t.id) && t.alarm == null ? { ...t, alarm: true } : t));
+          for (const d of Object.values(p.days ?? {}))
+            for (const b of d.blocks as unknown as { templateId: string; alarm?: boolean; status: string }[])
+              if (alarmed.has(b.templateId) && b.status === "planned" && b.alarm == null) b.alarm = true;
         }
         if (from < 5) {
           // v5: one app (Shugyo); the old identities become colour themes.

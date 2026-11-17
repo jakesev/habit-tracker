@@ -213,14 +213,47 @@ export function You() {
               className="w-full"
               onClick={async () => {
                 await sendTestReminder();
-                toast("Test reminder sent", "It arrives in 5 seconds. Lock your phone to see it pop up.");
+                toast("Test reminder sent", "Pull down your notifications to see it.");
               }}
             >
               <span className="inline-flex items-center gap-2">
                 <Icon name="bell" size={16} /> Send a test reminder
               </span>
             </GhostButton>
-            <p className="mt-2 text-[12px] text-faint">You get a heads-up before each block, another when it starts, and the day's plan before the first one.</p>
+            <p className="mt-2 text-[12px] text-faint">
+              A heads-up before each block with Done and Snooze buttons, "Now" when it starts, the day's plan before the first one. Blocks with Alarm on ring until you
+              dismiss them.
+            </p>
+          </div>
+        )}
+        {isNative && settings.notifications && (
+          <Row label="Up next in your notifications" hint="One quiet line that always shows what's now and next.">
+            <Toggle label="Up next in your notifications" on={settings.upNext} onChange={(v) => update({ upNext: v })} />
+          </Row>
+        )}
+        <div className="px-4 py-4">
+          <div className="text-[15px] font-medium">Break between blocks</div>
+          <div className="mt-0.5 text-[12px] text-faint">Focus timers end this much early so you can reset before the next block.</div>
+          <div className="mt-3">
+            <Segmented
+              id="transition"
+              value={settings.transition}
+              onChange={(v) => update({ transition: v })}
+              options={[
+                { value: 0, label: "None" },
+                { value: 5, label: "5 min" },
+                { value: 10, label: "10 min" },
+              ]}
+            />
+          </div>
+        </div>
+        {isNative && (
+          <div className="flex items-start gap-3 px-4 py-4">
+            <Icon name="home" size={18} className="mt-0.5 shrink-0 text-ember" />
+            <div className="text-[12px] leading-snug text-faint">
+              <span className="font-medium text-ink">Add the widget:</span> long-press an empty spot on your home screen → Widgets → Shugyo. It shows what's now and next,
+              with a Done button.
+            </div>
           </div>
         )}
         <div className="px-4 py-4">

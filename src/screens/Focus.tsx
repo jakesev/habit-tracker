@@ -2,13 +2,14 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { GhostButton, Icon, Pressable, PrimaryButton, Scale, spring } from "../components/ui";
 import { haptic, notify, primeAudio, sound } from "../lib/feedback";
-import { cancelOnce, isNative, keepAwake, scheduleOnce } from "../lib/native";
-import { fmtClock, fmtDuration, STEP } from "../lib/time";
+import { cancelOnce, hideFocusNotification, isNative, keepAwake, scheduleOnce, showFocusNotification } from "../lib/native";
+import { themeOf } from "../lib/identity";
+import { fmtClock, fmtDuration, fmtTime, nowMin, todayKey } from "../lib/time";
 import { voice } from "../lib/voice";
 import { selectBlock, useStore } from "../store/store";
 import { useUI } from "../store/ui";
 
-const PRESETS = [15, 30, 45, 60, 90];
+const PRESETS = [15, 25, 30, 45, 60];
 
 /** Full-screen, distraction-free focus. One timer at a time; it survives reloads. */
 export function FocusScreen() {
@@ -75,8 +76,27 @@ function OtherRunning() {
 
 /* ---------------------------------------------------------------- Setup */
 
+const T_STEP = 5;
+
+/**
+ * Default timer length: the time actually left in the block if you're starting late,
+ * minus the transition break so you can reset before the next block.
+ */
+export function defaultFocusMinutes(start: number, duration: number, now: number, transition: number, isToday: boolean) {
+  const left = isToday && now > start ? Math.floor(start + duration - now) : duration;
+  const base = left >= 10 ? left : duration;
+  const withBreak = base - transition >= 10 ? base - transition : base;
+  return Math.max(T_STEP, Math.floor(withBreak / T_STEP) * T_STEP);
+}
+
 function Setup({ date, id, title, subtitle, duration }: { date: string; id: string; title: string; subtitle?: string; duration: number }) {
-  const [mins, setMins] = useState(duration);
+  const block = useStore((s) => selectBlock(s, date, id));
+  const transition = useStore((s) => s.settings.transition);
+  const next = useStore((s) => s.days[date]?.blocks.find((x) => x.status === "planned" && block && x.start >= block.start + block.duration && x.category !== "event"));
+  const now = nowMin();
+  const isToday = date === todayKey();
+  const late = !!block && isToday && now > block.start + 1;
+  const [mins, setMins] = useState(() => (block ? defaultFocusMinutes(block.start, block.duration, now, transition, isToday) : duration));
   const timing = useStore((s) => s.settings.questionTiming);
   const resistance = useStore((s) => selectBlock(s, date, id)?.resistance ?? null);
   const setAnswers = useStore((s) => s.setAnswers);
@@ -92,8 +112,8 @@ function Setup({ date, id, title, subtitle, duration }: { date: string; id: stri
       <div className="mt-12 flex items-center justify-center gap-6">
         <Pressable
           aria-label="15 minutes less"
-          disabled={mins <= STEP}
-          onClick={() => setMins((m) => Math.max(STEP, m - STEP))}
+          disabled={mins <= T_STEP}
+          onClick={() => setMins((m) => Math.max(T_STEP, m - T_STEP))}
           className="grid h-14 w-14 place-items-center rounded-full border border-line bg-white/[0.04] disabled:opacity-30"
         >
           <Icon name="minus" size={22} />
@@ -107,7 +127,7 @@ function Setup({ date, id, title, subtitle, duration }: { date: string; id: stri
         <Pressable
           aria-label="15 minutes more"
           disabled={mins >= 180}
-          onClick={() => setMins((m) => Math.min(180, m + STEP))}
+          onClick={() => setMins((m) => Math.min(180, m + T_STEP))}
           className="grid h-14 w-14 place-items-center rounded-full border border-line bg-white/[0.04] disabled:opacity-30"
         >
           <Icon name="plus" size={22} />
@@ -136,6 +156,11 @@ function Setup({ date, id, title, subtitle, duration }: { date: string; id: stri
       )}
 
       <div className="mt-auto pt-10">
+        <p className="mb-1 text-center text-[13px] text-faint">
+          {late && block ? `Started late: ${Math.max(0, Math.floor(block.start + block.duration - now))} min left in this block. ` : ""}
+          Ends {fmtTime(Math.floor(now) + mins)}
+          {transition && next ? ` · ${transition} min to reset before ${next.title}` : ""}
+        </p>
         <p className="mb-4 text-center text-[15px] text-mute">{voice.timer.ready}</p>
         <PrimaryButton
           onClick={() => {
@@ -335,13 +360,23 @@ export function useFocusWatcher() {
     if (!isNative) return;
     let last = "";
     const apply = (f: ReturnType<typeof useStore.getState>["focus"]) => {
-      const key = f?.endsAt ? `${f.blockId}:${f.endsAt}` : "";
+      const key = f ? `${f.blockId}:${f.endsAt}:${f.pausedRemaining}` : "";
       if (key === last) return;
       last = key;
+      const st = useStore.getState();
+      const title = f ? selectBlock(st, f.date, f.blockId)?.title ?? "Focus" : "";
+      const t = themeOf(st.settings.theme);
+      const accent = "#" + t.rgb.map((n) => n.toString(16).padStart(2, "0")).join("");
       if (f?.endsAt) {
-        const title = selectBlock(useStore.getState(), f.date, f.blockId)?.title ?? "Focus";
         scheduleOnce(FOCUS_ALARM_ID, `${title} · time`, voice.timer.ended, f.endsAt);
-      } else cancelOnce(FOCUS_ALARM_ID);
+        showFocusNotification({ title, endsAt: f.endsAt, paused: false, remainingMs: f.endsAt - Date.now(), accent });
+      } else if (f) {
+        cancelOnce(FOCUS_ALARM_ID);
+        showFocusNotification({ title, endsAt: 0, paused: true, remainingMs: f.pausedRemaining ?? 0, accent });
+      } else {
+        cancelOnce(FOCUS_ALARM_ID);
+        hideFocusNotification();
+      }
     };
     apply(useStore.getState().focus);
     return useStore.subscribe((s) => apply(s.focus));
