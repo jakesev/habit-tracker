@@ -4,6 +4,7 @@ import { CountUp, Icon, Pressable, Ring } from "../components/ui";
 import { useToday } from "../lib/hooks";
 import {
   completion,
+  currentStandard,
   currentStreak,
   dayState,
   disciplineIndex,
@@ -52,6 +53,7 @@ export function Home() {
   const t = nowMin(now);
   const next = days[today]?.blocks.find((b) => b.status === "planned" && b.start + b.duration > t);
   const nextSteps = [3, 7, 14, 30, 60].find((s) => s > streak);
+  const standard = currentStandard(days, settings, today, firstDay);
 
   return (
     <div className="px-5 pt-[calc(18px+var(--safe-top))] pb-32">
@@ -84,6 +86,8 @@ export function Home() {
         </div>
         <div className="relative text-[16px] text-mute">{streak === 1 ? "day" : "days"} in a row</div>
         <div className="relative mt-3 flex items-center gap-2 text-[13px] text-faint">
+          <span className="num">Standard {standard.threshold}%</span>
+          <span>·</span>
           <span className="num">Longest {longest}</span>
           {nextSteps && (
             <>

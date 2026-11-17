@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   completion,
+  currentStandard,
+  dayState,
   currentStreak,
   dailyScore,
   difficulty,
@@ -143,5 +145,34 @@ describe("disciplineIndex", () => {
     const r = disciplineIndex(days, settings, addDays(first, 9), first);
     expect(r.consistency).toBe(0.5);
     expect(r.index).toBe(25);
+  });
+});
+
+describe("standards rise with your level", () => {
+  it("each day is judged by the standard it started with", () => {
+    const d = (standard: number) => day("2026-11-10", [block({ duration: 100, status: "partial", focusedMinutes: 85 })], { standard });
+    expect(dayState(d(80), settings, false)).toBe("streak");
+    expect(dayState(d(90), settings, false)).toBe("miss");
+  });
+
+  it("a new account starts at 70% with two rest passes", () => {
+    const s = currentStandard({}, settings, "2026-11-17", "2026-11-17");
+    expect(s.level).toBe("Starting out");
+    expect(s.threshold).toBe(70);
+    expect(s.passes).toBe(2);
+    expect(s.next?.level).toBe("Building");
+  });
+
+  it("a perfect, consistent record reaches Elite at 95%", () => {
+    const first = "2026-11-01";
+    const days: Record<string, Day> = {};
+    for (let i = 0; i < 10; i++) {
+      const k = addDays(first, i);
+      days[k] = day(k, [block({ status: "done" })]);
+    }
+    const s = currentStandard(days, settings, addDays(first, 9), first);
+    expect(s.level).toBe("Elite");
+    expect(s.threshold).toBe(95);
+    expect(s.next).toBeUndefined();
   });
 });

@@ -103,13 +103,17 @@ export interface Day {
   /** When you tapped "I'm home", and the plan before it, for undo. */
   homeAt?: Min;
   beforeHome?: DayBlock[];
+  /** Share of the plan (%) this day needed to count. Set from your level when the day began, then frozen. */
+  standard?: number;
 }
 
 export type QuestionTiming = "after" | "before";
 
 export interface Settings {
-  streakThreshold: number; // percent, default 80
-  restPassesPerWeek: number; // default 1
+  /** Fallback standard for days saved before standards were per-day. Not user-set. */
+  streakThreshold: number;
+  /** Unused since rest passes follow your level; kept so old backups load. */
+  restPassesPerWeek: number;
   defaultReminderLead: number; // minutes
   questionTiming: QuestionTiming;
   haptics: boolean;

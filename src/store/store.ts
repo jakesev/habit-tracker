@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { HOME_BLOCKS, seedTemplate } from "../lib/seed";
 import type { PlanResult } from "../lib/plan";
+import { currentStandard } from "../lib/score";
 import { addDays, diffDays, fromKey, nowMin, snapDuration, todayKey } from "../lib/time";
 import {
   EXCUSED_REASONS,
@@ -137,9 +138,14 @@ export const useStore = create<State>()(
           let changed = !s.firstDay;
           // Tomorrow is created a day early so its reminders can be scheduled tonight.
           const tomorrow = addDays(today, 1);
+          // New days take the standard of the level you're at when they begin.
+          const standard = currentStandard(days, s.settings, today, first).threshold;
           for (let k = first; diffDays(k, tomorrow) >= 0; k = addDays(k, 1)) {
             if (!days[k]) {
-              days[k] = { date: k, blocks: blocksFor(k, s.template, s.settings) };
+              days[k] = { date: k, blocks: blocksFor(k, s.template, s.settings), standard };
+              changed = true;
+            } else if (k >= today && days[k].standard == null) {
+              days[k] = { ...days[k], standard };
               changed = true;
             }
             // Auto-miss: a planned block whose window has closed becomes Not done.

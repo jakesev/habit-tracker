@@ -4,7 +4,7 @@ import { Check } from "../components/Check";
 import { CATEGORY_COLOR, CATEGORY_LABEL, GhostButton, Icon, Pressable, PrimaryButton, Scale, Segmented, Sheet, spring } from "../components/ui";
 import { haptic, sound } from "../lib/feedback";
 import { useAccent } from "../lib/identity";
-import { blockCredit, completion, dailyScore, difficulty, restPassesUsedInWeek, stayedHard } from "../lib/score";
+import { blockCredit, completion, currentStandard, dailyScore, difficulty, restPassesUsedInWeek, stayedHard } from "../lib/score";
 import { fmtDateLong, fmtDuration, fmtRange, todayKey, weekStart } from "../lib/time";
 import type { DayBlock, SkipReason } from "../lib/types";
 import { SKIP_OPTIONS, voice } from "../lib/voice";
@@ -377,9 +377,11 @@ export function DaySheet() {
   if (!date) return <Sheet open={false} onClose={() => {}} label="Day" children={null} />;
   const pct = completion(day);
   const score = dailyScore(day);
-  const passesLeft = settings.restPassesPerWeek - restPassesUsedInWeek(days, date);
+  const firstDay = useStore.getState().firstDay ?? todayKey();
+  const passesLeft = currentStandard(days, settings, todayKey(), firstDay).passes - restPassesUsedInWeek(days, date);
+  const dayStandard = day?.standard ?? settings.streakThreshold;
   const thisWeek = weekStart(date) === weekStart(todayKey());
-  const below = pct != null && pct < settings.streakThreshold;
+  const below = pct != null && pct < dayStandard;
 
   return (
     <Sheet open={!!date} onClose={() => openDay(null)} label="Day detail">
@@ -391,7 +393,7 @@ export function DaySheet() {
       ) : (
         <>
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <Stat k="Completed" v={pct == null ? "–" : `${Math.round(pct)}%`} />
+            <Stat k={`Completed · needed ${dayStandard}%`} v={pct == null ? "–" : `${Math.round(pct)}%`} />
             <Stat k="Discipline score" v={score == null ? "–" : `${Math.round(score)}`} />
           </div>
 

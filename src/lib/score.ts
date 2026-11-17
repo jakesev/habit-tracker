@@ -70,7 +70,7 @@ export function dayState(day: Day | undefined, settings: Settings, isToday: bool
   if (day?.restPass) return "rest";
   const c = completion(day);
   if (c == null) return "empty";
-  if (c >= settings.streakThreshold - 1e-9) return "streak";
+  if (c >= (day?.standard ?? settings.streakThreshold) - 1e-9) return "streak";
   return isToday ? "open" : "miss";
 }
 
@@ -238,4 +238,35 @@ export function weekFocusedMinutes(days: Record<DateKey, Day>, today: DateKey): 
     for (const b of d.blocks) m += focusedMinutes(b);
   }
   return m;
+}
+
+/* ------------------------------------------------------------------ Standards: the bar rises with your level */
+
+export interface Standard {
+  level: string;
+  /** Share of the day's plan needed for the day to count. */
+  threshold: number;
+  /** Rest passes per week. */
+  passes: number;
+  /** Discipline index where this level starts. */
+  from: number;
+}
+
+export const STANDARDS: Standard[] = [
+  { level: "Starting out", threshold: 70, passes: 2, from: 0 },
+  { level: "Building", threshold: 80, passes: 1, from: 40 },
+  { level: "Solid", threshold: 90, passes: 1, from: 65 },
+  { level: "Elite", threshold: 95, passes: 1, from: 85 },
+];
+
+/**
+ * Your standard right now, from your discipline index. No manual tweaking:
+ * hold the line for weeks and the bar rises; slip and it eases back.
+ */
+export function currentStandard(days: Record<DateKey, Day>, settings: Settings, today: DateKey, firstDay: DateKey) {
+  const { index } = disciplineIndex(days, settings, today, firstDay);
+  const i = Math.max(0, STANDARDS.findIndex((s, k) => index >= s.from && (k === STANDARDS.length - 1 || index < STANDARDS[k + 1].from)));
+  const cur = STANDARDS[i];
+  const next = STANDARDS[i + 1];
+  return { ...cur, index: i, disciplineIndex: index, next: next ? { ...next, gap: Math.max(1, Math.ceil(next.from - index)) } : undefined };
 }

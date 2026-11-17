@@ -7,6 +7,8 @@ import { useUI } from "../store/ui";
 import { motion } from "framer-motion";
 import { Logo } from "../components/Logo";
 import { IDENTITIES, useIdentity } from "../lib/identity";
+import { currentStandard, STANDARDS } from "../lib/score";
+import { todayKey } from "../lib/time";
 import { getLauncherIdentity, isNative, requestNotificationPermission, setLauncherIdentity, shareBackup } from "../lib/native";
 
 export function You() {
@@ -56,6 +58,9 @@ export function You() {
   };
 
   const identity = useIdentity();
+  const days = useStore((s) => s.days);
+  const firstDay = useStore((s) => s.firstDay) ?? todayKey();
+  const standard = currentStandard(days, settings, todayKey(), firstDay);
   const [launcherId, setLauncherId] = useState<string | null>(null);
   useEffect(() => {
     getLauncherIdentity().then(setLauncherId);
@@ -126,14 +131,55 @@ export function You() {
         )}
       </section>
 
-      <Group title="Streak">
-        <Row label="A day counts at" hint="One missed block shouldn't wipe a good week.">
-          <Stepper value={settings.streakThreshold} min={50} max={100} step={5} unit="%" onChange={(v) => update({ streakThreshold: v })} />
-        </Row>
-        <Row label="Rest passes per week" hint="Keeps the chain alive. Needs a reason.">
-          <Stepper value={settings.restPassesPerWeek} min={0} max={3} step={1} onChange={(v) => update({ restPassesPerWeek: v })} />
-        </Row>
-      </Group>
+      <section className="mt-7">
+        <div className="eyebrow mb-2 px-1">Your standard</div>
+        <div className="card overflow-hidden">
+          <div className="px-4 pt-4 pb-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <div className="text-[17px] font-semibold tracking-[-0.01em]">{standard.level}</div>
+              <div className="num text-[13px] text-mute">Discipline {Math.round(standard.disciplineIndex)}</div>
+            </div>
+            <p className="mt-1 text-[13px] leading-snug text-faint">
+              {standard.next
+                ? `${standard.next.gap} more to ${standard.next.level}. Then the bar rises to ${standard.next.threshold}%.`
+                : "The top standard. Hold it."}
+            </p>
+          </div>
+          <ol className="border-t border-line">
+            {STANDARDS.map((st, i) => {
+              const cur = i === standard.index;
+              const past = i < standard.index;
+              return (
+                <li
+                  key={st.level}
+                  className="relative flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0"
+                  style={cur ? { background: "rgb(var(--ember-rgb) / 0.08)" } : undefined}
+                >
+                  {cur && <span className="absolute inset-y-0 left-0 w-[3px] bg-ember" />}
+                  <span
+                    className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-semibold ${
+                      cur ? "bg-ember text-black" : past ? "bg-white/15 text-ink" : "border border-white/15 text-faint"
+                    }`}
+                  >
+                    {past ? <Icon name="check" size={13} stroke={3} /> : i + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className={`text-[15px] font-medium ${cur ? "" : past ? "text-mute" : "text-faint"}`}>{st.level}</div>
+                    <div className="text-[12px] text-faint">
+                      {st.passes} rest pass{st.passes > 1 ? "es" : ""} a week · from discipline {st.from}
+                    </div>
+                  </div>
+                  <div className={`num shrink-0 text-[17px] font-semibold ${cur ? "text-ember-hi" : past ? "text-mute" : "text-faint"}`}>{st.threshold}%</div>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="px-4 py-3 text-[12px] leading-snug text-faint">
+            A day counts when you finish this share of its plan. The bar rises as you hold it for weeks and eases back if you slip. Each day keeps the
+            standard it started with.
+          </p>
+        </div>
+      </section>
 
       <Group title="Check-in">
         <div className="px-4 py-4">
@@ -293,23 +339,6 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
         {hint && <div className="mt-0.5 text-[12px] text-faint">{hint}</div>}
       </div>
       {children}
-    </div>
-  );
-}
-
-function Stepper({ value, min, max, step, unit = "", onChange }: { value: number; min: number; max: number; step: number; unit?: string; onChange: (v: number) => void }) {
-  return (
-    <div className="flex shrink-0 items-center gap-1 rounded-xl bg-white/[0.05] p-1">
-      <Pressable aria-label="Less" disabled={value <= min} onClick={() => onChange(Math.max(min, value - step))} className="grid h-9 w-9 place-items-center rounded-lg text-mute disabled:opacity-30">
-        <Icon name="minus" size={16} />
-      </Pressable>
-      <span className="num w-12 text-center text-[15px] font-semibold">
-        {value}
-        {unit}
-      </span>
-      <Pressable aria-label="More" disabled={value >= max} onClick={() => onChange(Math.min(max, value + step))} className="grid h-9 w-9 place-items-center rounded-lg text-mute disabled:opacity-30">
-        <Icon name="plus" size={16} />
-      </Pressable>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { DayBox } from "../components/DayBox";
 import { CountUp, Icon, Pressable } from "../components/ui";
 import { useToday } from "../lib/hooks";
-import { completion, currentStreak, dayState, glowTier, longestStreak, restPassesUsedInWeek, streakEndingAt } from "../lib/score";
+import { completion, currentStandard, currentStreak, dayState, glowTier, longestStreak, restPassesUsedInWeek, streakEndingAt } from "../lib/score";
 import { MONTHS, toKey } from "../lib/time";
 import type { DateKey } from "../lib/types";
 import { useStore } from "../store/store";
@@ -44,7 +44,8 @@ export function Streak() {
 
   const streak = currentStreak(days, settings, today, firstDay);
   const longest = longestStreak(days, settings, today, firstDay);
-  const passesLeft = Math.max(0, settings.restPassesPerWeek - restPassesUsedInWeek(days, today));
+  const standard = currentStandard(days, settings, today, firstDay);
+  const passesLeft = Math.max(0, standard.passes - restPassesUsedInWeek(days, today));
   const canNext = offset < 0;
   const canPrev = toKey(new Date(y, m, 1)) > firstDay.slice(0, 8) + "01";
 
@@ -131,7 +132,7 @@ export function Streak() {
 
         <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-faint">
           <span className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded-[4px] bg-ember" /> {settings.streakThreshold}%+ counts
+            <span className="h-3 w-3 rounded-[4px] bg-ember" /> Met the day's standard
           </span>
           <span className="flex items-center gap-1.5">
             <span className="h-3 w-3 rounded-[4px] bg-skill" /> Rest pass
