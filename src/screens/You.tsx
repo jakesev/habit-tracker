@@ -98,7 +98,8 @@ export function You() {
                   )}
                 </div>
                 <div className="mt-3 text-[16px] font-semibold tracking-[-0.01em]">{i.name}</div>
-                <div className="mt-0.5 text-[12px] leading-snug text-faint">{i.line}</div>
+                <div className="text-[12px] font-medium" style={{ color: `rgb(${i.hi.join(" ")})` }}>{i.meaning}</div>
+                <div className="mt-1.5 text-[12px] leading-snug text-faint">{i.line}</div>
               </Pressable>
             );
           })}

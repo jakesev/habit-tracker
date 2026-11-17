@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "com.jakesev.routine",
-  appName: "Ember",
+  appName: "Shugyo",
   webDir: "dist",
   backgroundColor: "#08080a",
   android: {
@@ -16,7 +16,7 @@ const config: CapacitorConfig = {
     },
     LocalNotifications: {
       smallIcon: "ic_stat_icon",
-      iconColor: "#ff6a2b",
+      iconColor: "#f0502e",
     },
   },
 };

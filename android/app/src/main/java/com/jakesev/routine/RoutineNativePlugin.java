@@ -12,13 +12,13 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 /**
  * Small native helpers the web layer can't do itself:
- *  - switch the launcher icon + name between the four identities (activity aliases)
+ *  - switch the launcher icon + name between the identities (activity aliases)
  *  - keep the screen on while a focus timer runs
  */
 @CapacitorPlugin(name = "RoutineNative")
 public class RoutineNativePlugin extends Plugin {
 
-    private static final String[] IDS = { "ember", "callus", "standard", "forge" };
+    private static final String[] IDS = { "shugyo", "vow" };
 
     private ComponentName alias(String id) {
         String cap = id.substring(0, 1).toUpperCase() + id.substring(1);
@@ -27,7 +27,7 @@ public class RoutineNativePlugin extends Plugin {
 
     @PluginMethod
     public void setIdentity(PluginCall call) {
-        String id = call.getString("id", "ember");
+        String id = call.getString("id", "shugyo");
         boolean known = false;
         for (String s : IDS) if (s.equals(id)) known = true;
         if (!known) {
@@ -48,11 +48,11 @@ public class RoutineNativePlugin extends Plugin {
     @PluginMethod
     public void getIdentity(PluginCall call) {
         PackageManager pm = getContext().getPackageManager();
-        String current = "ember";
+        String current = "shugyo";
         for (String s : IDS) {
             int state = pm.getComponentEnabledSetting(alias(s));
             boolean enabled = state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-                || (state == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT && s.equals("ember"));
+                || (state == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT && s.equals("shugyo"));
             if (enabled) {
                 current = s;
                 break;

@@ -1,8 +1,11 @@
-# Routine app (Ember · Callus · Standard · Forge)
+# Shugyo · Vow
 
-A mobile-first accountability app for a daily routine of skill practice, reading, family time and chores. Dark, calm, one accent. Tough on the next action, kind about the past.
+A mobile-first accountability app built around one idea: choose discomfort on purpose, every day, and keep the promise you made to yourself. Dark, calm, one accent. Tough on the next action, kind about the past.
 
-The app has four switchable identities (You → Name and look). Each has its own name, icon and accent colour. On Android the home-screen icon and name switch too.
+Two identities, switchable in **You → Name and look**. On Android the home-screen icon and name switch too.
+
+- **Shugyo** (修行, "austere training"): daily, deliberate discomfort that forges the spirit, not just the skill. Its mark is an ensō, the open Zen brush circle: practice is never finished.
+- **Vow**: a promise to yourself, kept when no one is watching. Its mark is a chain link: the bond, and the streak you don't break.
 
 ## Install on Android
 
@@ -28,7 +31,7 @@ This is **Phase 1: core accountability**. Phases 2 (dynamic re-planning, Google 
 | **Scoring** | Daily discipline score (priority × difficulty), streak day at ≥80% (setting), discipline index = 30-day avg × consistency, productivity = minutes + blocks delivered with a streak bonus up to 1.2×. |
 | **Rules** | 15-minute grid everywhere. Unticked blocks auto-mark *Not done* when their window closes. Corrections are logged and lock at the end of the next day. Excused skips leave the day's total. |
 | **I'm home** | One tap when you walk in: shower and dinner go first, then the evening re-plans around the fixed anchors (dogs, wind down). Flexible blocks shrink 15 min at a time before anything drops; family time is never cut. You see what changed and why before applying, and can undo. |
-| **You** | Name and look, streak threshold, rest passes, check-in timing, reminder defaults, haptics, sounds, family night, backup/restore, reset. |
+| **You** | Name and look (Shugyo / Vow), streak threshold, rest passes, check-in timing, reminder defaults, haptics, sounds, family night, backup/restore, reset. |
 
 ## Run it
 

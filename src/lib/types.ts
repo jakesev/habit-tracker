@@ -116,7 +116,7 @@ export interface Settings {
   sound: boolean;
   notifications: boolean;
   familyNight: number; // weekday for the weekly family block
-  identity: "ember" | "callus" | "standard" | "forge";
+  identity: "shugyo" | "vow";
   /** Usual time home from work (minutes), and bed time. */
   homeTime: number;
   bedTime: number;

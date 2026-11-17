@@ -3,9 +3,9 @@
 
     <application
         android:allowBackup="true"
-        android:icon="@mipmap/ic_ember"
+        android:icon="@mipmap/ic_shugyo"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_ember_round"
+        android:roundIcon="@mipmap/ic_shugyo_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
@@ -26,11 +26,11 @@
 
         <!-- One launcher entry per identity. Only one is enabled at a time (see RoutineNativePlugin). -->
         <activity-alias
-            android:name=".LauncherEmber"
+            android:name=".LauncherShugyo"
             android:targetActivity=".MainActivity"
-            android:label="Ember"
-            android:icon="@mipmap/ic_ember"
-            android:roundIcon="@mipmap/ic_ember_round"
+            android:label="Shugyo"
+            android:icon="@mipmap/ic_shugyo"
+            android:roundIcon="@mipmap/ic_shugyo_round"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
@@ -40,39 +40,11 @@
             <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
         </activity-alias>
         <activity-alias
-            android:name=".LauncherCallus"
+            android:name=".LauncherVow"
             android:targetActivity=".MainActivity"
-            android:label="Callus"
-            android:icon="@mipmap/ic_callus"
-            android:roundIcon="@mipmap/ic_callus_round"
-            android:enabled="false"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".LauncherStandard"
-            android:targetActivity=".MainActivity"
-            android:label="Standard"
-            android:icon="@mipmap/ic_standard"
-            android:roundIcon="@mipmap/ic_standard_round"
-            android:enabled="false"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".LauncherForge"
-            android:targetActivity=".MainActivity"
-            android:label="Forge"
-            android:icon="@mipmap/ic_forge"
-            android:roundIcon="@mipmap/ic_forge_round"
+            android:label="Vow"
+            android:icon="@mipmap/ic_vow"
+            android:roundIcon="@mipmap/ic_vow_round"
             android:enabled="false"
             android:exported="true">
             <intent-filter>

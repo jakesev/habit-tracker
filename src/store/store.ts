@@ -23,7 +23,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sound: true,
   notifications: false,
   familyNight: 6,
-  identity: "ember",
+  identity: "shugyo",
   homeTime: 17 * 60,
   bedTime: 21 * 60,
 };
@@ -326,7 +326,7 @@ export const useStore = create<State>()(
     {
       name: "stride-routine-v1",
       storage: safeStorage,
-      version: 2,
+      version: 3,
       migrate: (persisted, from) => {
         const p = persisted as { template?: { id: string }[]; settings?: object; days?: Record<string, { date: string; blocks: { templateId: string }[] }> };
         if (from < 2) {
@@ -355,6 +355,11 @@ export const useStore = create<State>()(
             }));
             d.blocks = ([...add, ...d.blocks] as unknown as { start: number }[]).sort((a, b) => a.start - b.start) as unknown as typeof d.blocks;
           }
+        }
+        if (from < 3) {
+          // v3: the four look-based names became Shugyo and Vow.
+          const st = (p.settings ?? {}) as { identity?: string };
+          if (st.identity !== "shugyo" && st.identity !== "vow") p.settings = { ...st, identity: "shugyo" };
         }
         return persisted as never;
       },

@@ -34,8 +34,8 @@
 
 :root {
   color-scheme: dark;
-  --ember-rgb: 255 106 43;
-  --ember-hi-rgb: 255 138 76;
+  --ember-rgb: 240 80 46;
+  --ember-hi-rgb: 247 118 79;
   /* Android app: Capacitor injects --safe-area-inset-*; browsers: env(). */
   --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
   --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));

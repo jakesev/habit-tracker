@@ -21,7 +21,7 @@ const settings: Settings = {
   sound: true,
   notifications: false,
   familyNight: 6,
-  identity: "ember",
+  identity: "shugyo",
   homeTime: 1020,
   bedTime: 1260,
 };
