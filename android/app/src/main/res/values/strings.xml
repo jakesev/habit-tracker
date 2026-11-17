@@ -7,5 +7,5 @@
     <string name="shortcut_home_short">I\'m home</string>
     <string name="shortcut_home_long">I\'m home, re-plan my evening</string>
     <string name="shortcut_today_short">Today</string>
-    <string name="widget_description">What's now and what's next, with a Done button</string>
+    <string name="widget_description">What\'s now and what\'s next, with a Done button</string>
 </resources>
