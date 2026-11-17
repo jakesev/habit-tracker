@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { GhostButton, Icon, Pressable, Segmented, spring, Toggle } from "../components/ui";
 import { haptic } from "../lib/feedback";
 import { DOW_SHORT, fmtDuration, fmtRange } from "../lib/time";
@@ -7,10 +7,10 @@ import { useUI } from "../store/ui";
 import { AnimatePresence, motion } from "framer-motion";
 import { Logo } from "../components/Logo";
 import { CalendarSettings } from "./CalendarSettings";
-import { IDENTITIES, useIdentity } from "../lib/identity";
+import { APP, THEMES, useTheme } from "../lib/identity";
 import { currentStandard, STANDARDS } from "../lib/score";
 import { todayKey } from "../lib/time";
-import { getLauncherIdentity, isNative, requestNotificationPermission, setLauncherIdentity, shareBackup } from "../lib/native";
+import { isNative, requestNotificationPermission, sendTestReminder, shareBackup } from "../lib/native";
 
 export function You() {
   const settings = useStore((s) => s.settings);
@@ -39,7 +39,7 @@ export function You() {
   const exportData = async () => {
     const s = useStore.getState();
     const json = JSON.stringify({ firstDay: s.firstDay, template: s.template, days: s.days, settings: s.settings }, null, 2);
-    const name = `${identity.name.toLowerCase()}-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    const name = `${APP.name.toLowerCase()}-backup-${new Date().toISOString().slice(0, 10)}.json`;
     if (isNative) {
       try {
         await shareBackup(json, name);
@@ -58,15 +58,11 @@ export function You() {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
 
-  const identity = useIdentity();
+  const theme = useTheme();
   const days = useStore((s) => s.days);
   const firstDay = useStore((s) => s.firstDay) ?? todayKey();
   const standard = currentStandard(days, settings, todayKey(), firstDay);
   const [showLadder, setShowLadder] = useState(false);
-  const [launcherId, setLauncherId] = useState<string | null>(null);
-  useEffect(() => {
-    getLauncherIdentity().then(setLauncherId);
-  }, []);
   const weekdays = template.filter((t) => t.days.includes(2)).sort((a, b) => a.start - b.start);
 
   return (
@@ -77,62 +73,48 @@ export function You() {
       </header>
 
       <section className="mt-7">
-        <div className="eyebrow mb-2 px-1">Name and look</div>
-        <div className="grid grid-cols-2 gap-2.5">
-          {IDENTITIES.map((i) => {
-            const on = i.id === identity.id;
+        <div className="eyebrow mb-2 px-1">Theme</div>
+        <div className="grid grid-cols-3 gap-2.5">
+          {THEMES.map((t) => {
+            const on = t.id === theme.id;
+            const c = `rgb(${t.rgb.join(" ")})`;
             return (
               <Pressable
-                key={i.id}
-                scale={0.96}
+                key={t.id}
+                scale={0.95}
                 aria-pressed={on}
+                aria-label={`${t.name} theme`}
                 onClick={() => {
-                  update({ identity: i.id });
+                  update({ theme: t.id });
                   haptic("success");
                 }}
-                className="relative overflow-hidden rounded-[20px] border p-4 text-left transition-colors"
-                style={{
-                  borderColor: on ? `rgb(${i.rgb.join(" ")} / 0.55)` : "var(--color-line)",
-                  background: on ? `radial-gradient(120% 100% at 0% 0%, rgb(${i.rgb.join(" ")} / 0.16), transparent 70%)` : "rgb(255 255 255 / 0.025)",
-                }}
+                className="relative overflow-hidden rounded-[18px] border p-2.5 text-left transition-colors"
+                style={{ borderColor: on ? `rgb(${t.rgb.join(" ")} / 0.6)` : "var(--color-line)", background: t.bg }}
               >
-                <div className="flex items-center justify-between">
-                  <Logo identity={i} size={40} />
+                {/* a tiny preview of the app in this theme */}
+                <div className="rounded-[12px] p-2" style={{ background: `radial-gradient(120% 90% at 50% 0%, rgb(${t.rgb.join(" ")} / 0.22), transparent 70%)` }}>
+                  <div className="flex items-center justify-between">
+                    <Logo theme={t} size={18} />
+                    <span className="h-3.5 w-3.5 rounded-full border-2" style={{ borderColor: c, borderRightColor: "transparent" }} />
+                  </div>
+                  <div className="mt-2 h-1.5 w-3/4 rounded-full bg-white/15" />
+                  <div className="mt-1 h-1.5 w-1/2 rounded-full bg-white/10" />
+                  <div className="mt-2.5 h-4 rounded-md" style={{ background: c }} />
+                </div>
+                <div className="mt-2 flex items-center justify-between px-0.5">
+                  <span className="text-[13px] font-semibold">{t.name}</span>
                   {on && (
-                    <motion.span layoutId="identity-on" className="grid h-6 w-6 place-items-center rounded-full" style={{ background: `rgb(${i.rgb.join(" ")})` }}>
-                      <Icon name="check" size={14} stroke={3} className="text-black" />
+                    <motion.span layoutId="theme-on" className="grid h-4 w-4 place-items-center rounded-full" style={{ background: c }}>
+                      <Icon name="check" size={10} stroke={3.4} className="text-black" />
                     </motion.span>
                   )}
                 </div>
-                <div className="mt-3 text-[16px] font-semibold tracking-[-0.01em]">{i.name}</div>
-                <div className="text-[12px] font-medium" style={{ color: `rgb(${i.hi.join(" ")})` }}>{i.meaning}</div>
-                <div className="mt-1.5 text-[12px] leading-snug text-faint">{i.line}</div>
               </Pressable>
             );
           })}
         </div>
-        {isNative && launcherId != null && launcherId !== identity.id ? (
-          <div className="mt-3 rounded-2xl border border-line bg-white/[0.03] p-4">
-            <GhostButton
-              className="w-full"
-              onClick={async () => {
-                if (await setLauncherIdentity(identity.id)) {
-                  setLauncherId(identity.id);
-                  toast(`${identity.name} is on your phone`, "If the icon vanished from your home screen, drag it back from the app drawer.");
-                }
-              }}
-            >
-              <span className="inline-flex items-center gap-2">
-                <Logo identity={identity} size={22} /> Use {identity.name} on the home screen
-              </span>
-            </GhostButton>
-            <p className="mt-2 text-[12px] text-faint">Changes the app's icon and name. Some launchers take the old icon off your home screen; add it back from the app drawer.</p>
-          </div>
-        ) : (
-          <p className="mt-2 px-1 text-[12px] text-faint">Tap to try each one. {isNative ? "This one is on your home screen." : ""}</p>
-        )}
+        <p className="mt-2 px-1 text-[12px] text-faint">{theme.line}</p>
       </section>
-
       <section className="mt-7">
         <div className="eyebrow mb-2 px-1">Your standard</div>
         <div className="card overflow-hidden">
@@ -225,6 +207,22 @@ export function You() {
         <Row label="Notifications" hint={isNative ? "Before each block, even when the app is closed." : notifSupported ? "While the app is open or in the background." : "Add to home screen to enable."}>
           <Toggle label="Notifications" on={settings.notifications} onChange={enableNotifications} />
         </Row>
+        {isNative && settings.notifications && (
+          <div className="px-4 py-3">
+            <GhostButton
+              className="w-full"
+              onClick={async () => {
+                await sendTestReminder();
+                toast("Test reminder sent", "It arrives in 5 seconds. Lock your phone to see it pop up.");
+              }}
+            >
+              <span className="inline-flex items-center gap-2">
+                <Icon name="bell" size={16} /> Send a test reminder
+              </span>
+            </GhostButton>
+            <p className="mt-2 text-[12px] text-faint">You get a heads-up before each block, another when it starts, and the day's plan before the first one.</p>
+          </div>
+        )}
         <div className="px-4 py-4">
           <div className="text-[15px] font-medium">Default lead time</div>
           <div className="mt-3">
@@ -342,7 +340,7 @@ export function You() {
           </div>
         )}
       </div>
-      <p className="mt-6 text-center text-[12px] text-faint">{identity.name} · Phase 1</p>
+      <p className="mt-6 text-center text-[12px] text-faint">{APP.name} · Phase 1</p>
     </div>
   );
 }

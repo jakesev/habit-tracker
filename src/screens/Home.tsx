@@ -24,7 +24,7 @@ import type { Day, DateKey } from "../lib/types";
 import { useStore } from "../store/store";
 import { useUI } from "../store/ui";
 import { Logo } from "../components/Logo";
-import { useIdentity } from "../lib/identity";
+import { APP } from "../lib/identity";
 
 const stagger = (i: number) => ({
   initial: { opacity: 0, y: 14 },
@@ -34,7 +34,6 @@ const stagger = (i: number) => ({
 
 export function Home() {
   const { now, today } = useToday();
-  const identity = useIdentity();
   const days = useStore((s) => s.days);
   const settings = useStore((s) => s.settings);
   const firstDay = useStore((s) => s.firstDay) ?? today;
@@ -72,7 +71,7 @@ export function Home() {
       <motion.header {...stagger(0)} className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Logo />
-          <span className="text-[17px] font-semibold tracking-[-0.02em]">{identity.name}</span>
+          <span className="text-[17px] font-semibold tracking-[-0.02em]">{APP.name}</span>
         </div>
         <span className="eyebrow">Last 30 days</span>
       </motion.header>

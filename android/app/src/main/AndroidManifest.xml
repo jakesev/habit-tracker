@@ -24,7 +24,7 @@
             </intent-filter>
         </activity>
 
-        <!-- One launcher entry per identity. Only one is enabled at a time (see RoutineNativePlugin). -->
+        <!-- The launcher entry. An alias so older builds that switched icons can be put back (RoutineNativePlugin). -->
         <activity-alias
             android:name=".LauncherShugyo"
             android:targetActivity=".MainActivity"
@@ -32,20 +32,6 @@
             android:icon="@mipmap/ic_shugyo"
             android:roundIcon="@mipmap/ic_shugyo_round"
             android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".LauncherVow"
-            android:targetActivity=".MainActivity"
-            android:label="Vow"
-            android:icon="@mipmap/ic_vow"
-            android:roundIcon="@mipmap/ic_vow_round"
-            android:enabled="false"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

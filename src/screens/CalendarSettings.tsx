@@ -2,7 +2,7 @@ import { useState } from "react";
 import { GhostButton, Icon, PrimaryButton, Toggle } from "../components/ui";
 import { cloudConfigured, connectGoogle, disconnectGoogle } from "../lib/cloud";
 import { syncCalendar } from "../lib/gcal";
-import { useIdentity } from "../lib/identity";
+import { APP } from "../lib/identity";
 import { useStore } from "../store/store";
 import { useUI } from "../store/ui";
 
@@ -19,7 +19,6 @@ export function CalendarSettings() {
   const cloud = useStore((s) => s.cloud);
   const setCloud = useStore((s) => s.setCloud);
   const toast = useUI((s) => s.showToast);
-  const identity = useIdentity();
   const [busy, setBusy] = useState(false);
 
   const run = async (fn: () => Promise<unknown>, ok?: [string, string]) => {
@@ -48,7 +47,7 @@ export function CalendarSettings() {
               {cloud.connected
                 ? `${cloud.email ?? "Your Google account"} · synced ${ago(cloud.lastSync)}`
                 : cloudConfigured
-                  ? `Your blocks go into a "${identity.name}" calendar, and your other events show up as busy time.`
+                  ? `Your blocks go into a "${APP.name}" calendar, and your other events show up as busy time.`
                   : "Needs a one-time setup in Google Cloud and Supabase (about 10 minutes). The steps are in SETUP-GOOGLE.md in the app's repo."}
             </div>
             {cloud.error && cloud.connected && <div className="mt-1.5 text-[12px] text-[#fca5a5]">Last sync failed: {cloud.error.slice(0, 120)}</div>}
@@ -60,7 +59,7 @@ export function CalendarSettings() {
             <div className="flex min-h-[60px] items-center justify-between gap-4 border-t border-line px-4 py-3">
               <div className="min-w-0">
                 <div className="text-[15px] font-medium">Put my blocks in my calendar</div>
-                <div className="text-[12px] text-faint">In a "{identity.name}" calendar, ✓ when done. Today and tomorrow.</div>
+                <div className="text-[12px] text-faint">In a "{APP.name}" calendar, ✓ when done. Today and tomorrow.</div>
               </div>
               <Toggle label="Put my blocks in my calendar" on={cloud.write} onChange={(v) => setCloud({ write: v })} />
             </div>

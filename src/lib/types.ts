@@ -143,7 +143,9 @@ export interface Settings {
   sound: boolean;
   notifications: boolean;
   familyNight: number; // weekday for the weekly family block
-  identity: "shugyo" | "vow";
+  theme: "vermilion" | "gold" | "steel" | "jade" | "bone" | "blood";
+  /** Asked for reminder permission once (Android app). */
+  notificationsAsked: boolean;
   /** Usual time home from work (minutes), and bed time. */
   homeTime: number;
   bedTime: number;

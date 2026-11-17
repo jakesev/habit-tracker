@@ -9,6 +9,7 @@ import type { DayBlock, LogEntry } from "../lib/types";
 import { fmtLog } from "./Log";
 import { SKIP_OPTIONS, voice } from "../lib/voice";
 import { useStore } from "../store/store";
+import { isNative, requestNotificationPermission } from "../lib/native";
 import { useUI } from "../store/ui";
 import { completeBlock } from "./actions";
 
@@ -104,6 +105,25 @@ export function Today() {
           <Icon name="plus" size={16} stroke={2.2} /> Add
         </Pressable>
       </div>
+
+      {/* Reminders off in the Android app: say so, one tap to fix. */}
+      {isNative && !settings.notifications && (
+        <Pressable
+          scale={0.98}
+          onClick={async () => {
+            const ok = await requestNotificationPermission();
+            useStore.getState().updateSettings({ notifications: ok, notificationsAsked: true });
+            useUI.getState().showToast(ok ? "Reminders on" : "Notifications blocked", ok ? "You'll get a heads-up before each block." : "Turn them on in Android settings → Apps → Shugyo.");
+          }}
+          className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-ember/30 bg-ember/[0.08] py-3 pr-3 pl-4 text-left"
+        >
+          <Icon name="bell" size={18} className="shrink-0 text-ember" />
+          <span className="min-w-0 flex-1 text-[14px]">
+            <span className="font-semibold">Reminders are off.</span> <span className="text-mute">Nothing will nudge you.</span>
+          </span>
+          <span className="shrink-0 rounded-full bg-ember px-3 py-1.5 text-[13px] font-semibold text-black">Turn on</span>
+        </Pressable>
+      )}
 
       {/* Only after you chose to re-plan: a quiet note with undo. */}
       {day?.homeAt != null && t < settings.bedTime && (

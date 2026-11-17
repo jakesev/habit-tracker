@@ -1,17 +1,16 @@
-# Shugyo · Vow
+# Shugyo
 
-A mobile-first accountability app built around one idea: choose discomfort on purpose, every day, and keep the promise you made to yourself. Dark, calm, one accent. Tough on the next action, kind about the past.
+修行, "austere training": daily, deliberate discomfort that forges the spirit, not just the skill. A mobile-first accountability app: choose discomfort on purpose, every day, and keep the promise you made to yourself. Dark, calm, one accent. Tough on the next action, kind about the past.
 
-Two identities, switchable in **You → Name and look**. On Android the home-screen icon and name switch too.
+Its mark is an ensō, the open Zen brush circle: practice is never finished.
 
-- **Shugyo** (修行, "austere training"): daily, deliberate discomfort that forges the spirit, not just the skill. Its mark is an ensō, the open Zen brush circle: practice is never finished.
-- **Vow**: a promise to yourself, kept when no one is watching. Its mark is a chain link: the bond, and the streak you don't break.
+**Themes** (You → Theme): Vermilion (default), Gold, Steel, Jade, Bone, Blood. Each changes the accent and background tint across the whole app. The app's name and icon stay Shugyo.
 
 ## Install on Android
 
 1. On your phone, open **github.com/jakesev/habit-tracker/releases/tag/android-latest**.
 2. Tap **routine-app.apk**, open the download, and allow installs from your browser if Android asks.
-3. Open the app, go to **You → Reminders** and turn notifications on.
+3. Open the app and tap **Turn on reminders** when it asks. Allow notifications, then "Alarms & reminders". A test reminder arrives 5 seconds later.
 
 Every push rebuilds the app (`.github/workflows/android.yml`). Installing a new build goes over the top and keeps your data.
 
@@ -38,7 +37,7 @@ This is **Phase 1: core accountability**. Phases 2 (dynamic re-planning, Google 
 | **Rules** | 15-minute grid everywhere. Unticked blocks auto-mark *Not done* 15 min after their window closes. Corrections are logged and lock at the end of the next day. Excused skips leave the day's total. |
 | **Add and edit** | The **+ Add** on Today: add a habit block or an event (busy time, not scored) to any day, once or every week; edit or delete any block for just that day or every week. Tap a future day on the calendar to see its plan and add to it. |
 | **I'm home** | Only when you choose it (+ Add → "Home early or late?", or long-press the app icon): shower and dinner go first, then the evening re-plans around the fixed anchors (dogs, wind down). Flexible blocks shrink 15 min at a time before anything drops; family time is never cut. You see what changed and why before applying, and can undo. |
-| **You** | Name and look (Shugyo / Vow), your standard ladder, check-in timing, reminder defaults, haptics, sounds, family night, backup/restore, reset. |
+| **You** | Theme, your standard ladder, check-in timing, reminder defaults, haptics, sounds, family night, backup/restore, reset. |
 
 ## Run it
 
@@ -62,7 +61,7 @@ Phase 1 is **local-first**: everything is stored on the device, so it's instant 
 
 ## Platform notes
 
-- **Android app:** reminders are scheduled with the system, so they fire even when the app is closed, after a restart, and in Doze. The focus timer alarm does too. Haptics are native.
+- **Android app reminders:** scheduled with the system, so they fire even when the app is closed, after a restart, and in Doze. You get three kinds: **the day's plan** an hour before the first block (quiet, lists every block); **a heads-up** before each block (its own lead time, default 10 min); and **"Now: …"** when it starts, with what's next. Ticking a block clears its reminders from the notification shade. **You → Reminders → Send a test reminder** shows what they look like. If reminders are off, Today shows a one-tap banner. Haptics are native.
 - **Web version:** reminders fire while the page is open or in the background. iPhone browsers block web vibration, and web push on iPhone needs the page added to the Home Screen (iOS 16.4+).
 - **Reduce motion:** respected. Slides become fades.
 

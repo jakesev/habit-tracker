@@ -27,7 +27,8 @@ export const DEFAULT_SETTINGS: Settings = {
   sound: true,
   notifications: false,
   familyNight: 6,
-  identity: "shugyo",
+  theme: "vermilion",
+  notificationsAsked: false,
   homeTime: 17 * 60,
   bedTime: 21 * 60,
 };
@@ -550,7 +551,7 @@ export const useStore = create<State>()(
     {
       name: "stride-routine-v1",
       storage: safeStorage,
-      version: 4,
+      version: 5,
       migrate: (persisted, from) => {
         const p = persisted as { template?: { id: string }[]; settings?: object; days?: Record<string, { date: string; blocks: { templateId: string }[] }> };
         if (from < 2) {
@@ -592,6 +593,13 @@ export const useStore = create<State>()(
           // v3: the four look-based names became Shugyo and Vow.
           const st = (p.settings ?? {}) as { identity?: string };
           if (st.identity !== "shugyo" && st.identity !== "vow") p.settings = { ...st, identity: "shugyo" };
+        }
+        if (from < 5) {
+          // v5: one app (Shugyo); the old identities become colour themes.
+          const st = (p.settings ?? {}) as { identity?: string; theme?: string };
+          const theme = st.theme ?? (st.identity === "vow" ? "gold" : "vermilion");
+          const { identity: _old, ...rest } = st;
+          p.settings = { ...DEFAULT_SETTINGS, ...rest, theme };
         }
         return persisted as never;
       },

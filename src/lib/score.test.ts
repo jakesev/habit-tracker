@@ -25,7 +25,8 @@ const settings: Settings = {
   sound: true,
   notifications: false,
   familyNight: 6,
-  identity: "shugyo",
+  theme: "vermilion",
+  notificationsAsked: false,
   homeTime: 1020,
   bedTime: 1260,
 };

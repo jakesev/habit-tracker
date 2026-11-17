@@ -2,10 +2,11 @@ import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { Icon, Pressable, spring } from "./components/ui";
 import { notify } from "./lib/feedback";
-import { useApplyIdentity } from "./lib/identity";
+import { useApplyTheme } from "./lib/identity";
 import { handleAuthRedirect } from "./lib/cloud";
 import { useCloud } from "./lib/useCloud";
-import { isNative, setupNativeChrome, syncReminders } from "./lib/native";
+import { ensureLauncher, isNative, notificationsAllowed, setupNativeChrome, syncReminders } from "./lib/native";
+import { NotifyPrompt } from "./screens/NotifyPrompt";
 import { fmtClock, nowMin, todayKey } from "./lib/time";
 import { selectBlock, useStore } from "./store/store";
 import { TABS, useUI, type Tab } from "./store/ui";
@@ -32,6 +33,14 @@ export default function App() {
   useEffect(() => {
     useStore.getState().ensureDays();
     setupNativeChrome(handleBack, handleLink);
+    ensureLauncher();
+    // If notifications were turned off in Android settings, show it in the app.
+    const checkPermission = () =>
+      notificationsAllowed().then((ok) => {
+        if (isNative && !ok && useStore.getState().settings.notifications) useStore.getState().updateSettings({ notifications: false });
+      });
+    checkPermission();
+    document.addEventListener("visibilitychange", checkPermission);
     // Keep the phone's scheduled reminders in step with the plan.
     let t: ReturnType<typeof setTimeout> | undefined;
     const sync = () => {
@@ -51,7 +60,7 @@ export default function App() {
   }, [tab]);
   useFocusWatcher();
   useReminders();
-  useApplyIdentity();
+  useApplyTheme();
   useCloud();
 
   return (
@@ -87,6 +96,7 @@ export default function App() {
       <EditorSheet />
       <LateSheet />
       <LogSheet />
+      <NotifyPrompt />
       <FocusScreen />
       <Toast />
     </MotionConfig>

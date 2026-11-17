@@ -18,7 +18,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 @CapacitorPlugin(name = "RoutineNative")
 public class RoutineNativePlugin extends Plugin {
 
-    private static final String[] IDS = { "shugyo", "vow" };
+    private static final String[] IDS = { "shugyo" };
 
     private ComponentName alias(String id) {
         String cap = id.substring(0, 1).toUpperCase() + id.substring(1);

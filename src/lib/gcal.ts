@@ -8,7 +8,7 @@
 import { addDays, todayKey } from "./time";
 import { blockToEvent, eventToBusyBlock, type GEvent } from "./gcal-map";
 import { googleAccessToken } from "./cloud";
-import { identityOf } from "./identity";
+import { APP } from "./identity";
 import type { DateKey } from "./types";
 import { useStore } from "../store/store";
 
@@ -40,7 +40,7 @@ async function ensureCalendar(): Promise<string> {
       if ((e as { status?: number }).status !== 404) throw e;
     }
   }
-  const name = identityOf(s.settings.identity).name;
+  const name = APP.name;
   const cal = await g<{ id: string }>(`/calendars`, {
     method: "POST",
     body: JSON.stringify({ summary: name, description: `Your routine from the ${name} app. Edit blocks in the app; changes here are overwritten.`, timeZone: tz() }),

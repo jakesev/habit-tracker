@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_shugyo_bg">#F0502E</color>
-    <color name="ic_vow_bg">#E9B949</color>
     <color name="app_background">#08080A</color>
     <color name="colorPrimary">#08080A</color>
     <color name="colorPrimaryDark">#08080A</color>
