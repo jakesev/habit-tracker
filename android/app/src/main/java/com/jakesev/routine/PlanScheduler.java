@@ -174,7 +174,9 @@ public final class PlanScheduler {
                 if (b.anytime) {
                     // No clock time: one gentle note when the window opens.
                     if (notify) {
-                        list.add(new Trigger(code(date, b.id, K_START), PlanStore.at(date, b.start), K_START, date, b.id));
+                        // A short window gets a note when it opens; an all-day goal doesn't ping at dawn.
+                        if (b.until - b.start <= 8 * 60)
+                            list.add(new Trigger(code(date, b.id, K_START), PlanStore.at(date, b.start), K_START, date, b.id));
                         // Last call an hour before the window closes, if the window is long enough.
                         if (b.until - 60 > b.start + 30)
                             list.add(new Trigger(code(date, b.id + ":last", K_HEADS), PlanStore.at(date, b.until - 60), K_HEADS, date, b.id, -1));

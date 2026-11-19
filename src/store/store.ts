@@ -5,6 +5,7 @@ import { isCustom, programTemplate } from "../lib/program";
 import type { PlanResult } from "../lib/plan";
 import { currentStandard, GRACE } from "../lib/score";
 import { mergeBusy } from "../lib/gcal-map";
+import { goalReachedAt } from "../lib/goals";
 import { addDays, diffDays, fromKey, nowMin, snapDuration, todayKey } from "../lib/time";
 import {
   EXCUSED_REASONS,
@@ -155,6 +156,7 @@ export function blocksFor(date: DateKey, template: TemplateBlock[], settings: Se
       alarm: t.alarm,
       anytime: t.anytime,
       until: t.until,
+      goal: t.goal,
       status: "planned",
       reminderLead: settings.defaultReminderLead,
       reminderLeads: t.reminderLeads ?? settings.defaultReminderLeads,
@@ -179,6 +181,7 @@ function instance(t: TemplateBlock, settings: Settings): DayBlock {
     alarm: t.alarm,
     anytime: t.anytime,
     until: t.until,
+    goal: t.goal,
     status: "planned",
     reminderLead: settings.defaultReminderLead,
     reminderLeads: t.reminderLeads ?? settings.defaultReminderLeads,
@@ -242,15 +245,39 @@ export function rebuildDays(
       .filter((b) => yours(b) || did(b) || byId.has(b.templateId))
       .map((b) => {
         const t = byId.get(b.templateId);
-        if (!t || acted(b) || yours(b)) return b;
+        if (!t || yours(b)) return b;
+        if (acted(b)) return { ...b, goal: t.goal, anytime: t.anytime, until: t.until };
         // Still to do under the new plan: take its new times; an auto "Not done" gets a clean slate.
-        return { ...b, title: t.title, subtitle: t.subtitle, start: t.start, duration: t.duration, minDuration: t.minDuration, anytime: t.anytime, until: t.until, category: t.category, status: "planned" as const };
+        return { ...b, title: t.title, subtitle: t.subtitle, start: t.start, duration: t.duration, minDuration: t.minDuration, anytime: t.anytime, until: t.until, goal: t.goal, category: t.category, status: "planned" as const };
       });
     const kept = new Set(keep.map((b) => b.templateId));
     const fresh = blocksFor(k, template, settings).filter((b) => !kept.has(b.templateId) && (includePast || k !== today || (b.until ?? b.start + b.duration + GRACE) > now));
     out[k] = { ...d, blocks: [...keep, ...fresh].sort((a, b) => a.start - b.start), homeAt: undefined, beforeHome: undefined };
   }
   return out;
+}
+
+/**
+ * Goals (push-ups: 20 reps) are ticked by what you log: reaching the target marks the block
+ * done at the time of the set that got you there. Removing that set un-ticks it.
+ */
+export function syncGoals(d: Day, date: DateKey): Day {
+  let changed = false;
+  const blocks = d.blocks.map((b) => {
+    if (!b.goal) return b;
+    const reached = goalReachedAt(d, b);
+    if (reached != null && (b.status === "planned" || b.status === "missed")) {
+      changed = true;
+      return { ...b, status: "done" as const, goalDone: true, doneAt: reached, late: false, lateBy: 0, completedAt: Date.now(), skipReason: undefined, excused: undefined };
+    }
+    if (reached == null && b.status === "done" && b.goalDone) {
+      changed = true;
+      const over = date < todayKey() || (date === todayKey() && nowMin() > (b.until ?? b.start + b.duration + GRACE));
+      return { ...b, status: (over ? "missed" : "planned") as DayBlock["status"], goalDone: undefined, doneAt: undefined, completedAt: undefined };
+    }
+    return b;
+  });
+  return changed ? { ...d, blocks } : d;
 }
 
 /** Corrections are allowed until the end of the next day. */
@@ -466,13 +493,13 @@ export const useStore = create<State>()(
             const d = s.days[date];
             if (!d) return s;
             const logs = [...(d.logs ?? []), { ...e, id: uid() }].sort((a, b) => a.at - b.at);
-            return { days: { ...s.days, [date]: { ...d, logs } } };
+            return { days: { ...s.days, [date]: syncGoals({ ...d, logs }, date) } };
           }),
         removeLog: (date, id) =>
           set((s) => {
             const d = s.days[date];
             if (!d) return s;
-            return { days: { ...s.days, [date]: { ...d, logs: (d.logs ?? []).filter((l) => l.id !== id) } } };
+            return { days: { ...s.days, [date]: syncGoals({ ...d, logs: (d.logs ?? []).filter((l) => l.id !== id) }, date) } };
           }),
 
         setAnswers: (date, id, a) =>
@@ -629,7 +656,7 @@ export const useStore = create<State>()(
     {
       name: "stride-routine-v1",
       storage: safeStorage,
-      version: 9,
+      version: 10,
       // New settings get their defaults even when older saved data doesn't have them.
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<State>;
@@ -676,6 +703,14 @@ export const useStore = create<State>()(
           // v3: the four look-based names became Shugyo and Vow.
           const st = (p.settings ?? {}) as { identity?: string };
           if (st.identity !== "shugyo" && st.identity !== "vow") p.settings = { ...st, identity: "shugyo" };
+        }
+        if (from < 10 && from >= 9) {
+          // v10: push-ups are a daily goal (20 reps, any time, any number of sets).
+          const st = { ...DEFAULT_SETTINGS, ...(p.settings as Partial<Settings>) };
+          const own = ((p.template as TemplateBlock[] | undefined) ?? []).filter((t) => isCustom(t.id));
+          const template = [...programTemplate(st.program?.phase ?? 1, st.familyNight), ...own];
+          p.template = template;
+          if (p.days) p.days = rebuildDays(p.days as unknown as Record<DateKey, Day>, template, st, todayKey(), nowMin(), true) as never;
         }
         if (from < 9) {
           // v9: clear old-plan leftovers from today and put tonight's reading (and this morning's

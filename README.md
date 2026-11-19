@@ -22,7 +22,7 @@ This is **Phase 1: core accountability**. Phases 2 (dynamic re-planning, Google 
 
 The plan holds only what you've decided is **set**. It leaves dinner, family and the unexpected alone.
 
-- **Foundation:** push-ups (any time 5–5:30am), a cold shower (any time after work; any time on weekends), reading at 8pm. Only reading has a clock time.
+- **Foundation:** 20 push-ups a day (any time, any number of sets; extra reps count as extra), a cold shower (any time after work; any time on weekends), reading at 8pm. Only reading has a clock time.
 - Hold the standard on 5 of 7 days and Home offers the next step, one skill at a time, each 15 min any time 5–8pm: **Sales rep**, then **Writing**, then **Speaking**.
 - You → Your plan shows where you are and lets you switch. Anything you add yourself with **+ Add** stays through every change.
 
@@ -39,7 +39,7 @@ The plan holds only what you've decided is **set**. It leaves dinner, family and
 | **Scoring** | Daily discipline score (priority × difficulty), streak day when the day's standard is met, discipline index = 30-day avg × consistency, productivity = minutes + blocks delivered with a streak bonus up to 1.2×. |
 | **On time** | Each block has its time plus 15 min of grace. Done in that window = full credit. Done after = **done late, half credit**, recorded with how late. Ticking after the grace asks "When did you do it?": *On time, I forgot to tick* keeps full credit. |
 | **Hard version** | Any block can have one (Shower → **Cold**). Ticking asks "Cold?". Yes = **Stayed hard** and a discipline boost. |
-| **Log it** | **+ Add → Log it** for things off the plan: "Push-ups · 20 reps · 6:42am". Shows on Today at that time. +2 to the day's discipline score each (max +6). Never needed for the streak. Logged often = one-tap buttons. |
+| **Log it** | **+ Add → Log it**: one tap for 20 push-ups, or log a run or walk with distance (decimals), time taken and pace, at any time today: "Run · 3.13 km · 23 min · 7:29/km · 12:02pm". Push-up sets add to the daily 20. Shows on Today at that time. +2 to the day's discipline score each (max +6). Never needed for the streak. Logged often = one-tap buttons. |
 | **Timing and advice** | On-time rate and average minutes late, per block and overall (Home → On time). When a block runs late most days, a tip offers a one-tap "Move it to …" for every week. |
 | **Timers** | Only for deep work (skills, reading). Everything else is a plain **Done**. Start late and the timer offers what's left of the block. Lengths move in 5-minute steps. **Break between blocks** (none / 5 / 10 min, default 5) ends each timer early so you reset before the next block. |
 | **Reminders** | Pick any mix of 5m / 10m / 15m / 30m / 1h heads-ups per block (or a default for new blocks). Each chip lights up when on. |

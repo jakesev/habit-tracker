@@ -4,8 +4,9 @@ import { Check } from "../components/Check";
 import { CATEGORY_COLOR, CATEGORY_LABEL, GhostButton, Icon, Pressable, PrimaryButton, Sheet, spring } from "../components/ui";
 import { haptic, sound } from "../lib/feedback";
 import { useAccent } from "../lib/identity";
+import { countsToward, goalProgress } from "../lib/goals";
 import { blockCredit, completion, currentStandard, dailyScore, difficulty, restPassesUsedInWeek, stayedHard, timing, timingTip } from "../lib/score";
-import { fmtDateLong, fmtDuration, fmtRange, fmtTime, todayKey, weekStart } from "../lib/time";
+import { fmtDateLong, fmtDuration, fmtRange, fmtTime, nowMin, todayKey, weekStart } from "../lib/time";
 import { leadsOf, type DayBlock, type SkipReason } from "../lib/types";
 import { LeadPicker } from "../components/LeadPicker";
 import { SKIP_OPTIONS, voice } from "../lib/voice";
@@ -48,7 +49,7 @@ function BlockBody({ date, b, onClose }: { date: string; b: DayBlock; onClose: (
         <span className="h-2 w-2 rounded-full" style={{ background: CATEGORY_COLOR[b.category] }} />
         <span>{CATEGORY_LABEL[b.category]}</span>
         <span className="text-faint">·</span>
-        <span className="num">{fmtRange(b.start, b.duration)}</span>
+        <span className="num">{b.anytime ? `Any time until ${fmtTime(b.until ?? b.start + b.duration)}` : fmtRange(b.start, b.duration)}</span>
         {!isToday && (
           <>
             <span className="text-faint">·</span>
@@ -86,7 +87,7 @@ function BlockBody({ date, b, onClose }: { date: string; b: DayBlock; onClose: (
       )}
 
       {/* main action */}
-      {editable && b.status === "planned" && isToday && !isEvent && !usesTimer(b) && (
+      {editable && b.status === "planned" && isToday && !isEvent && !usesTimer(b) && !b.goal && (
         <PrimaryButton
           className="mt-5"
           onClick={() => {
@@ -130,8 +131,10 @@ function BlockBody({ date, b, onClose }: { date: string; b: DayBlock; onClose: (
         </div>
       )}
 
+      {b.goal && <GoalPanel date={date} b={b} />}
+
       {/* timing: how far off the plan, and one tip */}
-      {!isEvent && b.templateId !== "once" && <TimingNote date={date} b={b} />}
+      {!isEvent && !b.goal && b.templateId !== "once" && <TimingNote date={date} b={b} />}
 
       {/* checklist */}
       {b.checklist && b.checklist.length > 0 && (
@@ -225,7 +228,7 @@ function BlockBody({ date, b, onClose }: { date: string; b: DayBlock; onClose: (
               </span>
             </GhostButton>
           )}
-          {doneish && (
+          {doneish && !b.goal && (
             <GhostButton className="flex-1" onClick={() => tick(date, b.id)}>
               <span className="inline-flex items-center gap-2">
                 <Icon name="undo" size={16} /> Not done after all
@@ -629,6 +632,64 @@ function TimingNote({ date, b }: { date: string; b: DayBlock }) {
           Move it to {fmtTime(tip.moveTo)} every week
         </GhostButton>
       )}
+    </section>
+  );
+}
+
+/** A daily goal: progress, quick sets, and today's sets with their times. */
+function GoalPanel({ date, b }: { date: string; b: DayBlock }) {
+  const day = useStore((s) => s.days[date]);
+  const addLog = useStore((s) => s.addLog);
+  const removeLog = useStore((s) => s.removeLog);
+  const g = b.goal!;
+  const p = goalProgress(day, b);
+  const sets = (day?.logs ?? []).filter((l) => countsToward(l, g));
+  const canLog = date === todayKey();
+  return (
+    <section className="mt-5 rounded-2xl border border-line bg-white/[0.03] p-4">
+      <div className="flex items-baseline justify-between">
+        <div className="num text-[28px] font-semibold">
+          {p}
+          <span className="text-[15px] font-medium text-faint"> / {g.target} {g.unit}</span>
+        </div>
+        {p > g.target && <span className="num text-[13px] font-semibold text-ember-hi">+{p - g.target} extra</span>}
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/[0.06]">
+        <div className="h-full rounded-full bg-ember transition-all" style={{ width: `${Math.min(100, (p / g.target) * 100)}%` }} />
+      </div>
+      {canLog && (
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {[10, 20, 30].map((n) => (
+            <Pressable
+              key={n}
+              scale={0.94}
+              onClick={() => {
+                addLog(date, { title: b.title, count: n, unit: g.unit, at: Math.floor(nowMin()) });
+                haptic("success");
+              }}
+              className="h-12 rounded-xl bg-ember/15 text-[15px] font-semibold text-ember-hi"
+            >
+              +{n}
+            </Pressable>
+          ))}
+        </div>
+      )}
+      {sets.length > 0 && (
+        <ul className="mt-4 divide-y divide-white/[0.06]">
+          {sets.map((l) => (
+            <li key={l.id} className="flex items-center gap-3 py-2 text-[14px]">
+              <span className="num w-16 text-faint">{fmtTime(l.at)}</span>
+              <span className="num flex-1">{l.count} {l.unit}</span>
+              {canLog && (
+                <Pressable aria-label="Remove this set" onClick={() => removeLog(date, l.id)} className="grid h-8 w-8 place-items-center rounded-lg text-faint">
+                  <Icon name="x" size={14} />
+                </Pressable>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-3 text-[12px] text-faint">Do them whenever, in as many sets as you like. Every set adds up.</p>
     </section>
   );
 }

@@ -12,6 +12,7 @@ import { NotifyPrompt } from "./screens/NotifyPrompt";
 import { fmtClock, nowMin, todayKey } from "./lib/time";
 import { selectBlock, useStore } from "./store/store";
 import { leadsOf } from "./lib/types";
+import { goalProgress } from "./lib/goals";
 import { TABS, useUI, type Tab } from "./store/ui";
 import { FocusScreen, useFocusWatcher } from "./screens/Focus";
 import { Home } from "./screens/Home";
@@ -127,7 +128,8 @@ async function applyNativeActions() {
     const s = useStore.getState();
     const b = s.days[a.date]?.blocks.find((x) => x.id === a.id);
     if (b && (b.status === "planned" || b.status === "missed")) {
-      s.markDone(a.date, a.id, a.at);
+      if (b.goal) s.addLog(a.date, { title: b.title, count: Math.max(1, b.goal.target - goalProgress(s.days[a.date], b)), unit: b.goal.unit, at: a.at });
+      else s.markDone(a.date, a.id, a.at);
       n++;
     }
   }

@@ -1,3 +1,4 @@
+import type { Goal } from "./goals";
 /** Minutes since midnight, always on the 15-minute grid. */
 export type Min = number;
 
@@ -50,6 +51,8 @@ export interface TemplateBlock {
   /** Do it any time from `start` until `until` (e.g. cold shower after work). Never "late" inside the window. */
   anytime?: boolean;
   until?: Min;
+  /** A daily count goal hit through logs (push-ups: 20 reps, in any number of sets). */
+  goal?: Goal;
 }
 
 export interface Correction {
@@ -76,6 +79,9 @@ export interface DayBlock {
   alarm?: boolean;
   anytime?: boolean;
   until?: Min;
+  goal?: Goal;
+  /** Marked done because the goal was reached through logs. */
+  goalDone?: boolean;
   /** Did the hard version (e.g. the shower was cold). */
   challengeDone?: boolean;
   /** Done after its time + 15 min grace: half credit. */
@@ -139,8 +145,11 @@ export const leadsOf = (b: { reminderLead: number; reminderLeads?: number[] }) =
 export interface LogEntry {
   id: string;
   title: string;
+  /** How many or how far (decimals allowed: 3.13 km). */
   count?: number;
   unit?: string;
+  /** How long it took, in minutes (a run: 23.4). */
+  minutes?: number;
   /** Minutes since midnight. */
   at: number;
 }

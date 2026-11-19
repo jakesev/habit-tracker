@@ -124,7 +124,7 @@ describe("warm-up plan", () => {
     useStore.getState().setProgram(1);
     const ids = day().blocks.map((b) => b.templateId);
     expect(ids).toContain("writing"); // done, kept
-    expect(ids).not.toContain("pushups"); // morning window already gone today
+    expect(ids).toContain("pushups"); // an all-day goal: still open at 6:40pm
     expect(ids).toContain("reading");
     expect(ids).toContain("cold-shower");
     expect(ids).not.toContain("dogs");

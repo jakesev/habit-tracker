@@ -7,6 +7,7 @@ import { completion, stayedHard } from "../lib/score";
 import { fmtDateLong, fmtDuration, fmtTime, nowMin } from "../lib/time";
 import type { DayBlock, LogEntry } from "../lib/types";
 import { fmtLog } from "./Log";
+import { goalProgress, goalText } from "../lib/goals";
 import { SKIP_OPTIONS, voice } from "../lib/voice";
 import { useStore } from "../store/store";
 import { isNative, requestNotificationPermission } from "../lib/native";
@@ -221,8 +222,15 @@ export function Today() {
                         )}
                       </div>
                       <div className="mt-0.5 flex items-center gap-1.5 overflow-hidden text-[13px] whitespace-nowrap text-faint">
-                        <span className="num shrink-0">{fmtDuration(b.duration)}</span>
-                        {label ? (
+                        {!b.goal && <span className="num shrink-0">{fmtDuration(b.duration)}</span>}
+                        {b.goal ? (
+                          <>
+                            <span className={`truncate ${goalProgress(day, b) >= b.goal.target ? "text-mute" : ""}`}>
+                              {goalText(day, b)}
+                              {b.status === "planned" && goalProgress(day, b) === 0 ? ", any time today" : ""}
+                            </span>
+                          </>
+                        ) : label ? (
                           <>
                             <span>·</span>
                             <span className={`truncate ${label.tone === "bad" ? "text-[#f87171]/80" : label.tone === "good" ? "text-mute" : ""}`}>{label.text}</span>
@@ -242,6 +250,16 @@ export function Today() {
                         {b.alarm && b.status === "planned" && <Icon name="bell" size={13} className="ml-0.5 shrink-0 text-ember" />}
                       </div>
                     </Pressable>
+                    {b.goal && (
+                      <Pressable
+                        scale={0.9}
+                        aria-label={`Log ${b.goal.target} ${b.title}`}
+                        onClick={() => useStore.getState().addLog(today, { title: b.title, count: b.goal!.target, unit: b.goal!.unit, at: Math.floor(nowMin()) })}
+                        className="mr-0.5 h-9 shrink-0 rounded-full bg-ember/15 px-3 text-[13px] font-semibold text-ember-hi"
+                      >
+                        +{b.goal.target}
+                      </Pressable>
+                    )}
                     {isEvent(b) ? (
                       <span className="mr-2.5 grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[10px] bg-event/15 text-event" aria-label="Event">
                         <Icon name="today" size={16} />

@@ -1,3 +1,4 @@
+import { goalProgress, isGoalLog } from "./goals";
 import { addDays, diffDays, weekStart } from "./time";
 import type { Day, DayBlock, DateKey, Settings } from "./types";
 
@@ -35,7 +36,13 @@ function answered(b: DayBlock): number | null {
 }
 
 /** Logged extras: +2 each to the day's discipline score, at most +6. Never required. */
-export const extrasBonus = (day: Day | undefined) => Math.min(6, (day?.logs?.length ?? 0) * 2);
+export const extrasBonus = (day: Day | undefined) => {
+  if (!day) return 0;
+  // Logs that are a goal's sets (push-ups) aren't extras, unless you went past the target.
+  const extras = (day.logs ?? []).filter((l) => !isGoalLog(day, l)).length;
+  const overGoal = day.blocks.filter((b) => b.goal && goalProgress(day, b) > b.goal.target).length;
+  return Math.min(6, (extras + overGoal) * 2);
+};
 
 /** "Stayed hard": done when it was hard (difficulty 7+). */
 export const stayedHard = (b: DayBlock) =>
