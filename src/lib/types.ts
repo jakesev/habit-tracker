@@ -150,6 +150,8 @@ export interface LogEntry {
   unit?: string;
   /** How long it took, in minutes (a run: 23.4). */
   minutes?: number;
+  /** Logged as "morning" / "afternoon" / "evening" instead of an exact time. */
+  period?: "morning" | "afternoon" | "evening";
   /** Minutes since midnight. */
   at: number;
 }

@@ -5,6 +5,7 @@ import { pace } from "../lib/goals";
 import { fmtTime, nowMin, todayKey } from "../lib/time";
 import type { LogEntry } from "../lib/types";
 import { useStore } from "../store/store";
+import { WhenPicker, type When } from "../components/WhenPicker";
 import { useUI } from "../store/ui";
 
 const UNITS = ["reps", "km", "min", ""];
@@ -27,7 +28,6 @@ const PRESETS: Preset[] = [
   { key: "walk", title: "Walk", unit: "km", step: 0.5, timed: true },
 ];
 
-const toHHMM = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
 /** Log something you did: a set of push-ups, a run, anything. Any time today. */
 export function LogSheet() {
@@ -42,7 +42,7 @@ export function LogSheet() {
   const [mins, setMins] = useState("");
   const [timed, setTimed] = useState(false);
   const [step, setStep] = useState(5);
-  const [at, setAt] = useState(() => Math.floor(nowMin()));
+  const [when, setWhen] = useState<When>(() => ({ at: Math.floor(nowMin()) }));
 
   const reset = () => {
     setTitle("");
@@ -51,7 +51,7 @@ export function LogSheet() {
     setMins("");
     setTimed(false);
     setStep(5);
-    setAt(Math.floor(nowMin()));
+    setWhen({ at: Math.floor(nowMin()) });
   };
   useEffect(() => {
     if (open) reset();
@@ -77,7 +77,7 @@ export function LogSheet() {
     haptic("success");
     sound("tick");
     setOpen(false);
-    toast("Logged", `${fmtLog(e)} at ${fmtTime(e.at)}. It all counts.`);
+    toast("Logged", `${fmtLog(e)}, ${e.period ? `this ${e.period}` : `at ${fmtTime(e.at)}`}. It all counts.`);
   };
 
   const usePreset = (p: Preset) => {
@@ -204,27 +204,11 @@ export function LogSheet() {
         </Pressable>
       )}
 
-      {/* When: any time today */}
-      <label className="mt-3 flex items-center gap-3 rounded-2xl border border-line bg-white/[0.03] px-4 py-3">
-        <Icon name="clock" size={18} className="shrink-0 text-faint" />
-        <span className="flex-1 text-[14px] text-mute">When</span>
-        <input
-          type="time"
-          aria-label="When you did it"
-          value={toHHMM(at)}
-          max={toHHMM(now)}
-          onChange={(e) => {
-            const [h, mm] = e.target.value.split(":").map(Number);
-            if (!Number.isNaN(h)) setAt(Math.min(now, h * 60 + (mm || 0)));
-          }}
-          className="num bg-transparent text-right text-[16px] font-semibold text-ink [color-scheme:dark] focus:outline-none"
-        />
-        {at !== now && (
-          <Pressable onClick={() => setAt(now)} className="rounded-full bg-white/[0.06] px-2.5 py-1 text-[12px] text-mute">
-            Now
-          </Pressable>
-        )}
-      </label>
+      {/* When: a part of the day is enough */}
+      <div className="mt-4">
+        <div className="eyebrow mb-2">When</div>
+        <WhenPicker value={when} onChange={setWhen} />
+      </div>
 
       <PrimaryButton
         className="mt-5"
@@ -235,7 +219,8 @@ export function LogSheet() {
             count: n > 0 ? Math.round(n * 100) / 100 : undefined,
             unit: n > 0 ? unit || undefined : undefined,
             minutes: timed && m > 0 ? m : undefined,
-            at,
+            at: when.at,
+            period: when.period,
           })
         }
       >

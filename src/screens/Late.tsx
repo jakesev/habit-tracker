@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
-import { GhostButton, Icon, Pressable, PrimaryButton, Sheet } from "../components/ui";
+import { GhostButton, Icon, Pressable, Sheet } from "../components/ui";
 import { haptic, sound } from "../lib/feedback";
 import { GRACE } from "../lib/score";
-import { fmtRange, fmtTime, nowMin, todayKey } from "../lib/time";
+import { fmtRange, fmtTime, nowMin, PERIODS, todayKey } from "../lib/time";
 import { selectBlock, useStore } from "../store/store";
 import { useUI } from "../store/ui";
 
@@ -14,11 +13,6 @@ export function LateSheet() {
   const markDone = useStore((s) => s.markDone);
   const isToday = ref?.date === todayKey();
   const now = Math.floor(nowMin());
-  const [at, setAt] = useState(now);
-
-  useEffect(() => {
-    if (b) setAt(isToday ? Math.round((now - 15) / 15) * 15 : b.start + b.duration + 30);
-  }, [ref?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const finish = (when: number) => {
     if (!ref) return;
@@ -71,19 +65,27 @@ export function LateSheet() {
             )}
           </div>
 
-          <div className="eyebrow mt-6 mb-2">Or pick the time</div>
-          <div className="flex items-center gap-2">
-            <Pressable aria-label="15 minutes earlier" onClick={() => setAt((m) => Math.max(0, m - 15))} className="grid h-12 w-12 place-items-center rounded-xl bg-white/[0.06]">
-              <Icon name="minus" size={18} />
-            </Pressable>
-            <div className="num flex-1 text-center text-[22px] font-semibold">{fmtTime(at)}</div>
-            <Pressable aria-label="15 minutes later" onClick={() => setAt((m) => Math.min(isToday ? now : 24 * 60 - 1, m + 15))} className="grid h-12 w-12 place-items-center rounded-xl bg-white/[0.06]">
-              <Icon name="plus" size={18} />
-            </Pressable>
+          <div className="eyebrow mt-6 mb-2">Or roughly when</div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {PERIODS.map((p) => {
+              const future = isToday && p.from > now;
+              // The block's own part of the day counts as on time.
+              const onTime = b.start >= p.from && b.start < p.to;
+              const when = onTime ? b.start + b.duration : Math.min(p.at, isToday ? now : p.at);
+              return (
+                <Pressable
+                  key={p.id}
+                  scale={0.94}
+                  disabled={future}
+                  onClick={() => finish(when)}
+                  className="flex h-14 flex-col items-center justify-center rounded-xl bg-white/[0.05] disabled:opacity-30"
+                >
+                  <span className="text-[14px] font-semibold">{p.label}</span>
+                  <span className={`text-[11px] ${when > deadline ? "text-faint" : "text-good"}`}>{when > deadline ? "late" : "on time"}</span>
+                </Pressable>
+              );
+            })}
           </div>
-          <PrimaryButton className="mt-3" onClick={() => finish(at)}>
-            Done at {fmtTime(at)} · {at > deadline ? "late" : "on time"}
-          </PrimaryButton>
           <GhostButton className="mt-2 w-full" onClick={() => open("late", null)}>
             Cancel
           </GhostButton>

@@ -86,3 +86,14 @@ export function fmtDateLong(k: DateKey): string {
   const d = fromKey(k);
   return `${DOW_LONG[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`;
 }
+
+/** Parts of the day, for when you don't remember the exact time. */
+export type Period = "morning" | "afternoon" | "evening";
+export const PERIODS: { id: Period; label: string; short: string; from: Min; to: Min; at: Min }[] = [
+  { id: "morning", label: "Morning", short: "Morn", from: hm(4, 0), to: hm(12, 0), at: hm(8, 0) },
+  { id: "afternoon", label: "Afternoon", short: "Aft", from: hm(12, 0), to: hm(17, 0), at: hm(14, 0) },
+  { id: "evening", label: "Evening", short: "Eve", from: hm(17, 0), to: hm(23, 0), at: hm(19, 0) },
+];
+export const periodOf = (id: Period | undefined) => PERIODS.find((p) => p.id === id);
+/** The period a time falls in. */
+export const periodAt = (m: number) => PERIODS.find((p) => m >= p.from && m < p.to) ?? (m < hm(4, 0) ? PERIODS[2] : PERIODS[2]);

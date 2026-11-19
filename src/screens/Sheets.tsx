@@ -6,7 +6,8 @@ import { haptic, sound } from "../lib/feedback";
 import { useAccent } from "../lib/identity";
 import { countsToward, goalProgress } from "../lib/goals";
 import { blockCredit, completion, currentStandard, dailyScore, difficulty, restPassesUsedInWeek, stayedHard, timing, timingTip } from "../lib/score";
-import { fmtDateLong, fmtDuration, fmtRange, fmtTime, nowMin, todayKey, weekStart } from "../lib/time";
+import { fmtDateLong, fmtDuration, fmtRange, fmtTime, nowMin, periodOf, todayKey, weekStart } from "../lib/time";
+import { WhenPicker, type When } from "../components/WhenPicker";
 import { leadsOf, type DayBlock, type SkipReason } from "../lib/types";
 import { LeadPicker } from "../components/LeadPicker";
 import { SKIP_OPTIONS, voice } from "../lib/voice";
@@ -645,6 +646,7 @@ function GoalPanel({ date, b }: { date: string; b: DayBlock }) {
   const p = goalProgress(day, b);
   const sets = (day?.logs ?? []).filter((l) => countsToward(l, g));
   const canLog = date === todayKey();
+  const [when, setWhen] = useState<When>(() => ({ at: Math.floor(nowMin()) }));
   return (
     <section className="mt-5 rounded-2xl border border-line bg-white/[0.03] p-4">
       <div className="flex items-baseline justify-between">
@@ -658,13 +660,18 @@ function GoalPanel({ date, b }: { date: string; b: DayBlock }) {
         <div className="h-full rounded-full bg-ember transition-all" style={{ width: `${Math.min(100, (p / g.target) * 100)}%` }} />
       </div>
       {canLog && (
-        <div className="mt-4 grid grid-cols-3 gap-2">
+        <div className="mt-4">
+          <WhenPicker value={when} onChange={setWhen} />
+        </div>
+      )}
+      {canLog && (
+        <div className="mt-2 grid grid-cols-3 gap-2">
           {[10, 20, 30].map((n) => (
             <Pressable
               key={n}
               scale={0.94}
               onClick={() => {
-                addLog(date, { title: b.title, count: n, unit: g.unit, at: Math.floor(nowMin()) });
+                addLog(date, { title: b.title, count: n, unit: g.unit, at: when.period ? when.at : Math.floor(nowMin()), period: when.period });
                 haptic("success");
               }}
               className="h-12 rounded-xl bg-ember/15 text-[15px] font-semibold text-ember-hi"
@@ -678,7 +685,7 @@ function GoalPanel({ date, b }: { date: string; b: DayBlock }) {
         <ul className="mt-4 divide-y divide-white/[0.06]">
           {sets.map((l) => (
             <li key={l.id} className="flex items-center gap-3 py-2 text-[14px]">
-              <span className="num w-16 text-faint">{fmtTime(l.at)}</span>
+              <span className="num w-20 text-faint">{l.period ? periodOf(l.period)!.label : fmtTime(l.at)}</span>
               <span className="num flex-1">{l.count} {l.unit}</span>
               {canLog && (
                 <Pressable aria-label="Remove this set" onClick={() => removeLog(date, l.id)} className="grid h-8 w-8 place-items-center rounded-lg text-faint">

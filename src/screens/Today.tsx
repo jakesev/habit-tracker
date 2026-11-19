@@ -4,7 +4,7 @@ import { Check } from "../components/Check";
 import { CATEGORY_COLOR, CountUp, Icon, Pressable, PrimaryButton, Ring } from "../components/ui";
 import { useToday } from "../lib/hooks";
 import { completion, stayedHard } from "../lib/score";
-import { fmtDateLong, fmtDuration, fmtTime, nowMin } from "../lib/time";
+import { fmtDateLong, fmtDuration, fmtTime, nowMin, periodOf } from "../lib/time";
 import type { DayBlock, LogEntry } from "../lib/types";
 import { fmtLog } from "./Log";
 import { goalProgress, goalText } from "../lib/goals";
@@ -154,7 +154,7 @@ export function Today() {
                 <Fragment key={l.id}>
                   {i === nowIndex && <NowLine t={t} />}
                   <li className="relative flex items-center gap-3">
-                    <div className="num w-[52px] shrink-0 text-right text-[12px] font-medium text-ember-hi">{fmtTime(l.at, { suffix: false })}</div>
+                    <div className="num w-[52px] shrink-0 text-right text-[12px] font-medium text-ember-hi">{l.period ? periodOf(l.period)!.short : fmtTime(l.at, { suffix: false })}</div>
                     <div className="relative flex w-3 shrink-0 justify-center self-stretch">
                       <div className="absolute top-0 bottom-0 w-px bg-white/[0.07]" />
                       <div className="relative my-auto h-2 w-2 rotate-45 rounded-[2px] bg-ember" />
@@ -188,8 +188,8 @@ export function Today() {
                 >
                   {/* time */}
                   <div className="w-[52px] shrink-0 pt-[18px] text-right">
-                    <div className={`num text-[13px] font-medium ${live ? "text-ember-hi" : "text-mute"}`}>{fmtTime(b.start, { suffix: false })}</div>
-                    <div className="num text-[11px] text-faint">{b.start < 720 ? "am" : "pm"}</div>
+                    <div className={`num text-[13px] font-medium ${live ? "text-ember-hi" : "text-mute"}`}>{b.goal ? "All" : fmtTime(b.start, { suffix: false })}</div>
+                    <div className="num text-[11px] text-faint">{b.goal ? "day" : b.start < 720 ? "am" : "pm"}</div>
                   </div>
                   {/* rail */}
                   <div className="relative flex w-3 shrink-0 justify-center">
